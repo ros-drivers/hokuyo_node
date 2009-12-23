@@ -1,0 +1,16 @@
+<package>
+  <description>A ROS node to provide access to SCIP2.0-compliant Hokuyo laser devices (including 04LX).</description>
+  <author>Brian P. Gerkey, Jeremy Leibs, Blaise Gassend</author>
+  <license>LGPL</license>
+  <review status="API cleared" notes="Dec 2009" />
+  <depend package="roscpp" />
+  <depend package="sensor_msgs" />
+  <depend package="driver_base" />
+  <depend package="self_test" />
+  <depend package="diagnostic_updater" />
+  <depend package="dynamic_reconfigure" />
+  <url>http://www.ros.org/wiki/hokuyo_node</url>
+  <export>
+    <cpp cflags="-I${prefix}/msg/cpp -I${prefix}/srv/cpp"/>
+  </export>
+</package>

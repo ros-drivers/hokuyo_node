@@ -1,0 +1,12 @@
+<launch>
+  <group ns="hokuyo">
+    <param name="calibrate_time" type="bool" value="false"/>
+    <param name="intensity" type="bool" value="true"/>
+  </group>
+  <node name="hokuyo" pkg="hokuyo_node" type="hokuyo_node" respawn="false" output="screen"/>
+  
+  <node name="rviz" pkg="rviz" type="rviz" respawn="false" output="screen" args="-d $(find hokuyo_node)/hokuyo_test.vcg"/>
+  
+  <node name="tf_laser" pkg="tf" type="transform_sender" args="0 0 0 0 0 0 laser laser 100" respawn="false" output="screen"/>
+  
+</launch>
