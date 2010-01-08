@@ -32,69 +32,6 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
 
-/**
-
-@mainpage hokuyo_node
-
-@htmlinclude manifest.html
-
-@b hokuyo_node is a driver for SCIP2.0 compliant Hokuyo laser range-finders.
-This driver has been designed, primarliy with the Hokuyo UTM-30LX in mind, also
-known as the Hokuyo Top-URG. The driver has been extended to support some SCIP1.0 compliant 
-range-finders such as the URG-04LX.
-
-<hr>
-
-@section information Information
-
-Hokuyo scans are taken in a counter-clockwise direction.  Angles are measured
-counter clockwise with 0 pointing directly forward.
-
-<hr>
-
-@section usage Usage
-@verbatim
-$ hokuyo_node [standard ROS args]
-@endverbatim
-
-@par Example
-
-@verbatim
-$ hokuyo_node
-@endverbatim
-
-<hr>
-
-@section topic ROS topics
-
-Subscribes to (name/type):
-- None
-
-Publishes to (name / type):
-- @b "scan"/<a href="../../sensor_msgs/html/classstd__msgs_1_1LaserScan.html">sensor_msgs/LaserScan</a> : scan data from the laser.
-- @b "/diagnostics"/<a href="../../robot_msgs/html/classrobot__msgs_1_1DiagnosticMessage.html">robot_msgs/DiagnosticMessage</a> : diagnostic status information.
-
-<hr>
-
-@section services
- - @b "~self_test"    :  SelfTest service provided by SelfTest helper class
-
-@section parameters ROS parameters
-
-Reads the following parameters from the parameter server
-
-- @b "~min_ang"         : @b [double] the angle of the first range measurement in radians (Default: -pi/2)
-- @b "~max_ang"         : @b [double] the angle of the last range measurement in radians (Default: pi/2)
-- @b "~intensity"       : @b [bool]   whether or not the hokuyo returns intensity values (Default: true)
-- @b "~cluster"         : @b [int]    the number of adjascent range measurements to cluster into a single reading (Default: 1)
-- @b "~skip"            : @b [int]    the number of scans to skip between each measured scan (Default: 1)
-- @b "~port"            : @b [string] the port where the hokuyo device can be found (Default: "/dev/ttyACM0")
-- @b "~autostart"       : @b [bool]   whether the node should automatically start the hokuyo (Default: true)
-- @b "~calibrate_time"  : @b [bool]   whether the node should calibrate the hokuyo's time offset (Default: true)
-- @b "~frame_id"        : @b [string] the frame in which laser scans will be returned (Default: "laser")
-- @b "~reconfigure"    : @b [bool] set to true to force the node to reread its configuration, the node will reset it to false when it is reconfigured (Default: false)
- **/
-
 #include "driver_base/driver.h"
 #include "driver_base/driver_node.h"
 #include <diagnostic_updater/publisher.h>
