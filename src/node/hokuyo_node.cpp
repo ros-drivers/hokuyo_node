@@ -87,6 +87,7 @@ public:
   {
     try
     {
+      std::string old_device_id = device_id_;
       device_id_ = "unknown";
       device_status_ =  "unknown";
       
@@ -96,7 +97,8 @@ public:
       device_status_ = laser_.getStatus();
       
       // @todo causes spewing.
-      ROS_INFO("Connected to device with ID: %s", device_id_.c_str());
+      if (old_device_id != device_id_)
+        ROS_INFO("Connected to device with ID: %s", device_id_.c_str());
 
       if (config_.calibrate_time && !calibrated_)
       {
