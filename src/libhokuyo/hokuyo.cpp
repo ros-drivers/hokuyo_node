@@ -207,7 +207,7 @@ hokuyo::Laser::setToSCIP2()
   	laserWrite("\n");
 
 	laserReadline(buf, 100, 1000);
-	ROS_INFO("Laser comm protocol changed to %s \n", buf);
+	//ROS_INFO("Laser comm protocol changed to %s \n", buf);
 	//printf ("Laser comm protocol changed to %s \n", buf);
 }
 

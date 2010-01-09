@@ -95,6 +95,7 @@ public:
       device_id_ = getID();
       device_status_ = laser_.getStatus();
       
+      // @todo causes spewing.
       ROS_INFO("Connected to device with ID: %s", device_id_.c_str());
 
       if (config_.calibrate_time && !calibrated_)
