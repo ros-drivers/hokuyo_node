@@ -111,14 +111,8 @@ hokuyo::Laser::open(const char * port_name)
     fl.l_len   = 0;
     fl.l_pid   = getpid();
 
-    fcntl(laser_fd_, F_GETLK, &fl);
-
-    if (fl.l_type != F_UNLCK)
+    if (fcntl(laser_fd_, F_SETLK, &fl) != 0)
       HOKUYO_EXCEPT_ARGS(hokuyo::Exception, "Device %s is already locked.", port_name);
-
-    fl.l_type = F_WRLCK;
-
-    fcntl(laser_fd_, F_SETLK, &fl);
 
     // Settings for USB?
     struct termios newtio;
@@ -176,16 +170,7 @@ hokuyo::Laser::close ()
       //Exceptions here can be safely ignored since we are closing the port anyways
     }
 
-    struct flock fl;
-    fl.l_type   = F_UNLCK;
-    fl.l_whence = SEEK_SET;
-    fl.l_start = 0;
-    fl.l_len   = 0;
-    fl.l_pid   = getpid();
-    
-    fcntl(laser_fd_, F_SETLK, &fl);
-
-    retval = fclose(laser_port_);
+    retval = fclose(laser_port_); // Automatically releases the lock.
   }
 
   laser_port_ = NULL;
