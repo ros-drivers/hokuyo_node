@@ -63,6 +63,12 @@ class HokuyoDriver : public driver_base::Driver
 
   std::string device_status_;
   std::string device_id_;
+  
+  std::string vendor_name_;
+  std::string product_name_;
+  std::string protocol_version_;
+  std::string firmware_version_;
+  
   std::string connect_fail_;
   
   hokuyo::LaserScan  scan_;
@@ -131,6 +137,11 @@ public:
       laser_.open(config_.port.c_str());
       
       device_id_ = getID();
+      vendor_name_ = laser_.getVendorName();
+      firmware_version_ = laser_.getFirmwareVersion();
+      product_name_ = laser_.getProductName();
+      protocol_version_ = laser_.getProtocolVersion();
+
       device_status_ = laser_.getStatus();
       
       // @todo causes spewing.
@@ -395,6 +406,10 @@ public:
     status.add("Device Status", driver_.device_status_);
     status.add("Scan Thread Lost Count", driver_.lost_scan_thread_count_);
     status.add("Corrupted Scan Count", driver_.corrupted_scan_count_);
+    status.add("Vendor Name", driver_.vendor_name_);
+    status.add("Product Name", driver_.product_name_);
+    status.add("Firmware Version", driver_.firmware_version_);
+    status.add("Protocol Version", driver_.protocol_version_);
   }
 
   void statusTest(diagnostic_updater::DiagnosticStatusWrapper& status)

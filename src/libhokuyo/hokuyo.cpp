@@ -140,6 +140,7 @@ hokuyo::Laser::open(const char * port_name)
 
     querySensorConfig();
 
+    getVersionInformation(); // In preparation for calls to get various parts of the version info.
   }
   catch (hokuyo::Exception& e)
   {
@@ -636,8 +637,8 @@ hokuyo::Laser::serviceScan(hokuyo::LaserScan& scan, int timeout)
 }
 
 //////////////////////////////////////////////////////////////////////////////
-std::string 
-hokuyo::Laser::getID()
+void
+hokuyo::Laser::getVersionInformation()
 {
   if (!portOpen())
     HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
@@ -646,12 +647,75 @@ hokuyo::Laser::getID()
     HOKUYO_EXCEPT(hokuyo::Exception, "Error requesting version information");
   
   char buf[100];
-  char* serial = laserReadlineAfter(buf, 100, "SERI:");
+  vendor_name_ = laserReadlineAfter(buf, 100, "VEND:");
+  vendor_name_ = vendor_name_.substr(0,vendor_name_.length() - 3);
+  
+  product_name_ = laserReadlineAfter(buf, 100, "PROD:");
+  product_name_ = product_name_.substr(0,product_name_.length() - 3);
+  
+  firmware_version_ = laserReadlineAfter(buf, 100, "FIRM:");
+  firmware_version_ = firmware_version_.substr(0,firmware_version_.length() - 3);
 
-  std::string seristring(serial);
-  seristring = std::string("H") + seristring.substr(1,seristring.length() - 4);
+  protocol_version_ = laserReadlineAfter(buf, 100, "PROT:");
+  protocol_version_ = protocol_version_.substr(0,protocol_version_.length() - 3);
+  
+  serial_number_ = laserReadlineAfter(buf, 100, "SERI:");
+  serial_number_ = serial_number_.substr(0,serial_number_.length() - 3);
+}
 
-  return seristring;
+
+//////////////////////////////////////////////////////////////////////////////
+std::string 
+hokuyo::Laser::getID()
+{
+  if (!portOpen())
+    HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
+
+  return serial_number_;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+std::string 
+hokuyo::Laser::getFirmwareVersion()
+{
+  if (!portOpen())
+    HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
+
+  return firmware_version_;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+std::string 
+hokuyo::Laser::getProtocolVersion()
+{
+  if (!portOpen())
+    HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
+
+  return protocol_version_;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+std::string 
+hokuyo::Laser::getVendorName()
+{
+  if (!portOpen())
+    HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
+
+  return vendor_name_;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+std::string 
+hokuyo::Laser::getProductName()
+{
+  if (!portOpen())
+    HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
+
+  return product_name_;
 }
 
 

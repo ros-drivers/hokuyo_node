@@ -235,7 +235,7 @@ namespace hokuyo
      */
     int stopScanning();
 
-    //! Get serial number from the hokuyo
+    //! Return hokuyo serial number
     /*!
      * \return  Serial number of hokuyo.
      */
@@ -273,7 +273,34 @@ namespace hokuyo
      */
     long long calcLatency(bool intensity, double min_ang, double max_ang, int clustering = 0, int skip = 0, int num = 0, int timeout = -1);
 
+    //! Return firmware version
+    /*!
+     * \return  Firmware version of hokuyo.
+     */
+    std::string getFirmwareVersion();
+
+    //! Return hokuyo vendor name
+    /*!
+     * \return  Vendor name of hokuyo.
+     */
+    std::string getVendorName();
+
+    //! Return hokuyo product name
+    /*!
+     * \return  Product name of hokuyo.
+     */
+    std::string getProductName();
+
+    //! Return hokuyo protocol version
+    /*!
+     * \return Protocol version of hokuyo.
+     */
+    std::string getProtocolVersion();
+
   private:
+    //! Call VV and store the returned version information
+    void getVersionInformation();
+
     //! Query the sensor configuration of the hokuyo
     void querySensorConfig();
 
@@ -316,6 +343,12 @@ namespace hokuyo
 
     FILE* laser_port_;
     int laser_fd_;
+
+    std::string vendor_name_;
+    std::string product_name_;
+    std::string serial_number_;
+    std::string protocol_version_;
+    std::string firmware_version_;
   };
 
 }
