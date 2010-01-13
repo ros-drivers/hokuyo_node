@@ -566,6 +566,36 @@ hokuyo::Laser::requestScans(bool intensity, double min_ang, double max_ang, int 
   return status;
 }
 
+bool
+hokuyo::Laser::isIntensitySupported()
+{
+  hokuyo::LaserScan  scan;
+  
+  if (!portOpen())
+    HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
+
+  // Try an intensity command.
+  try
+  {
+    requestScans(1, 0, 0, 0, 0, 1);
+    serviceScan(scan, 1000);
+    return true;
+  }
+  catch (hokuyo::Exception &e)
+  {} 
+  
+  // Try an intensity command.
+  try
+  {
+    requestScans(0, 0, 0, 0, 0, 1);
+    serviceScan(scan, 1000);
+    return false;
+  }
+  catch (hokuyo::Exception &e)
+  {
+    HOKUYO_EXCEPT(hokuyo::Exception, "Exception whil trying to determine if intensity scans are supported.")
+  } 
+}
 
 int
 hokuyo::Laser::serviceScan(hokuyo::LaserScan& scan, int timeout)

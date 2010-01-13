@@ -126,6 +126,17 @@ public:
     return changed;
   }
 
+  bool checkIntensitySupport(Config &conf)
+  {
+    if (conf.intensity && !laser_.isIntensitySupported())
+    {
+      ROS_WARN("This unit does not appear to support intensity mode. Turning intensity off.");
+      conf.intensity = false;
+      return true;
+    }
+    return false;
+  }
+
   void doOpen()
   {
     try
@@ -239,7 +250,10 @@ public:
   void config_update(Config &new_config, int level = 0)
   {
     if (state_ != CLOSED)
+    {
       checkAngleRange(new_config);
+      checkIntensitySupport(new_config);
+    }
     
     config_ = new_config;
   }
@@ -309,7 +323,8 @@ public:
 
     diagnostic_.setHardwareID(driver_.getID());
 
-    if (driver_.checkAngleRange(driver_.config_)) // Might have been set before the device's range was known.
+    if (driver_.checkAngleRange(driver_.config_) || 
+        driver_.checkIntensitySupport(driver_.config_)) // Might have been set before the device's range was known.
       reconfigure_server_.updateConfig(driver_.config_);
   }
 

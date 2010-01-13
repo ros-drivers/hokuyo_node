@@ -297,6 +297,14 @@ namespace hokuyo
      */
     std::string getProtocolVersion();
 
+    //! Tries to determine if intensity mode is supported
+    /*!
+     * \return True if intensity mode is supported, false if it is not.
+     * hokuyo::Exception if no scan could be read even out of intensity
+     * mode.
+     */
+    bool isIntensitySupported();
+
   private:
     //! Call VV and store the returned version information
     void getVersionInformation();
