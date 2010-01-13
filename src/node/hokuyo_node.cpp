@@ -67,6 +67,7 @@ class HokuyoDriver : public driver_base::Driver
   
   hokuyo::LaserScan  scan_;
   hokuyo::Laser laser_;
+  hokuyo::LaserConfig laser_config_;
 
   bool calibrated_;
   int lost_scan_thread_count_;
@@ -81,6 +82,42 @@ public:
     calibrated_ = false;
     lost_scan_thread_count_ = 0;
     corrupted_scan_count_ = 0;
+  }
+
+  bool checkAngleRange(Config &conf)
+  {
+    bool changed = false;
+
+    if (conf.max_ang > laser_config_.max_angle)
+    {
+      changed = true;
+      ROS_WARN("Requested angle (%f rad) out of range, using maximum scan angle supported by device: %f rad.", 
+          conf.max_ang, laser_config_.max_angle);
+      conf.max_ang = laser_config_.max_angle;
+    }
+    
+    if (conf.min_ang < laser_config_.min_angle)
+    {
+      changed = true;
+      ROS_WARN("Requested angle (%f rad) out of range, using minimum scan angle supported by device: %f rad.", 
+          conf.min_ang, laser_config_.min_angle);
+      conf.min_ang = laser_config_.min_angle;
+    }                                    
+    
+    if (conf.min_ang > conf.max_ang)
+    {
+      changed = true;
+      if (conf.max_ang < laser_config_.min_angle)
+      {
+        ROS_WARN("Requested angle (%f rad) out of range, using minimum scan angle supported by device: %f rad.", 
+            conf.max_ang, laser_config_.min_angle);
+        conf.max_ang = laser_config_.min_angle;
+      }
+      ROS_WARN("Minimum angle must be greater than maximum angle. Adjusting min_ang.");
+      conf.min_ang = conf.max_ang;
+    }                                    
+
+    return changed;
   }
 
   void doOpen()
@@ -111,6 +148,8 @@ public:
       }
 
       setStatusMessage("Device opened successfully.");
+      laser_.getConfig(laser_config_);
+      
       state_ = OPENED;
     } 
     catch (hokuyo::Exception& e) 
@@ -188,6 +227,9 @@ public:
 
   void config_update(Config &new_config, int level = 0)
   {
+    if (state_ != CLOSED)
+      checkAngleRange(new_config);
+    
     config_ = new_config;
   }
 
@@ -232,7 +274,6 @@ private:
   ros::NodeHandle node_handle_;
   diagnostic_updater::DiagnosedPublisher<sensor_msgs::LaserScan> scan_pub_;
   sensor_msgs::LaserScan scan_msg_;
-  hokuyo::LaserConfig laser_config_;
 
 public:
   HokuyoNode(ros::NodeHandle &nh) :
@@ -250,14 +291,15 @@ public:
 
   void postOpenHook()
   {
-    driver_.laser_.getConfig(laser_config_);
-     
-    private_node_handle_.setParam("min_ang_limit", (double) (laser_config_.min_angle));
-    private_node_handle_.setParam("max_ang_limit", (double) (laser_config_.max_angle));
-    private_node_handle_.setParam("min_range", (double) (laser_config_.min_range));
-    private_node_handle_.setParam("max_range", (double) (laser_config_.max_range));
+    private_node_handle_.setParam("min_ang_limit", (double) (driver_.laser_config_.min_angle));
+    private_node_handle_.setParam("max_ang_limit", (double) (driver_.laser_config_.max_angle));
+    private_node_handle_.setParam("min_range", (double) (driver_.laser_config_.min_range));
+    private_node_handle_.setParam("max_range", (double) (driver_.laser_config_.max_range));
 
     diagnostic_.setHardwareID(driver_.getID());
+
+    if (driver_.checkAngleRange(driver_.config_)) // Might have been set before the device's range was known.
+      reconfigure_server_.updateConfig(driver_.config_);
   }
 
   virtual void addOpenedTests()
@@ -381,7 +423,7 @@ public:
   {
     hokuyo::LaserScan  scan;
 
-    int res = driver_.laser_.pollScan(scan, laser_config_.min_angle, laser_config_.max_angle, 1, 1000);
+    int res = driver_.laser_.pollScan(scan, driver_.laser_config_.min_angle, driver_.laser_config_.max_angle, 1, 1000);
 
     if (res != 0)
     {
@@ -400,7 +442,7 @@ public:
   {
     hokuyo::LaserScan  scan;
 
-    int res = driver_.laser_.requestScans(false, laser_config_.min_angle, laser_config_.max_angle, 1, 1, 99, 1000);
+    int res = driver_.laser_.requestScans(false, driver_.laser_config_.min_angle, driver_.laser_config_.max_angle, 1, 1, 99, 1000);
 
     if (res != 0)
     {
@@ -426,7 +468,7 @@ public:
   {
     hokuyo::LaserScan  scan;
 
-    int res = driver_.laser_.requestScans(false, laser_config_.min_angle, laser_config_.max_angle, 1, 1, 99, 1000);
+    int res = driver_.laser_.requestScans(false, driver_.laser_config_.min_angle, driver_.laser_config_.max_angle, 1, 1, 99, 1000);
 
     if (res != 0)
     {
