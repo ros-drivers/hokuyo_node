@@ -42,16 +42,16 @@
 //! Macro for throwing an exception with a message
 #define HOKUYO_EXCEPT(except, msg) \
   { \
-    char buf[100]; \
-    snprintf(buf, 100, "hokuyo::Laser::%s: " msg, __FUNCTION__); \
+    char buf[1000]; \
+    snprintf(buf, 1000, "hokuyo::Laser::%s: " msg, __FUNCTION__); \
     throw except(buf); \
   }
 
 //! Macro for throwing an exception with a message, passing args
 #define HOKUYO_EXCEPT_ARGS(except, msg, ...) \
   { \
-    char buf[100]; \
-    snprintf(buf, 100, "hokuyo::laser::%s: " msg, __FUNCTION__, __VA_ARGS__); \
+    char buf[1000]; \
+    snprintf(buf, 1000, "hokuyo::laser::%s: " msg, __FUNCTION__, __VA_ARGS__); \
     throw except(buf); \
   }
 
