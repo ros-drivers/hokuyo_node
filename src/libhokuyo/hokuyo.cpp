@@ -134,8 +134,13 @@ hokuyo::Laser::open(const char * port_name)
     // Just in case a previous failure mode has left our Hokuyo
     // spewing data, we send the TM2 and QT commands to be safe.
     laserFlush();
-    sendCmd("TM2", 1000);
-    sendCmd("QT", 1000);
+    try
+    {
+      sendCmd("TM2", 1000);
+    }
+    catch (hokuyo::Exception &e)
+    {} // Ignore. If the laser was scanning TM2 would fail
+    sendCmd("RS", 1000);
     laserFlush();
 
     querySensorConfig();
