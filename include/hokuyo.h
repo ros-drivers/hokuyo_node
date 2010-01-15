@@ -143,6 +143,14 @@ namespace hokuyo
      * This call essentiall wraps fclose.
      */
     void close();
+
+    //! Reset the laser to its power on state.
+    /*!
+     * This calls TM2 and RS. Exceptions raised by TM2 are ignored as they
+     * are normal in the case where the laser is scanning. Exceptions
+     * raised by RS are passed back to the caller.
+     */
+    void reset();
   
     //! Check whether the port is open
     bool portOpen() {  return laser_port_ != NULL; }

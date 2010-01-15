@@ -132,16 +132,8 @@ hokuyo::Laser::open(const char * port_name)
     setToSCIP2();
 
     // Just in case a previous failure mode has left our Hokuyo
-    // spewing data, we send the TM2 and QT commands to be safe.
-    laserFlush();
-    try
-    {
-      sendCmd("TM2", 1000);
-    }
-    catch (hokuyo::Exception &e)
-    {} // Ignore. If the laser was scanning TM2 would fail
-    sendCmd("RS", 1000);
-    laserFlush();
+    // spewing data, we send reset the laser to be safe.
+    reset();
 
     querySensorConfig();
 
@@ -160,17 +152,33 @@ hokuyo::Laser::open(const char * port_name)
 
 
 ///////////////////////////////////////////////////////////////////////////////
+void hokuyo::Laser::reset ()
+{
+	if (!portOpen())
+	    HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
+        laserFlush();
+        try
+        {
+          sendCmd("TM2", 1000);
+        }
+        catch (hokuyo::Exception &e)
+        {} // Ignore. If the laser was scanning TM2 would fail
+        sendCmd("RS", 1000);
+        laserFlush();
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
 void
 hokuyo::Laser::close ()
 {
   int retval = 0;
 
   if (portOpen()) {
-    //Try to be a good citizen and turn off the laser before we shutdown communication
+    //Try to be a good citizen and completely shut down the laser before we shutdown communication
     try
     {
-      sendCmd("QT",1000);
-      laserFlush();
+      reset();
     }
     catch (hokuyo::Exception& e) {
       //Exceptions here can be safely ignored since we are closing the port anyways

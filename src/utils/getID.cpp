@@ -34,6 +34,7 @@
 
 #include "hokuyo.h"
 #include <stdio.h>
+#include <ros/console.h>
 
 using namespace std;
 
@@ -48,12 +49,27 @@ main(int argc, char** argv)
   }
   
   hokuyo::Laser laser;
-  laser.open(argv[1]);
   
-  std::string device_id = laser.getID();
-  if (argc == 2)
-    printf("Device at %s has ID ", argv[1]);
-  printf("%s\n", device_id.c_str());
-  
-  return(0);
+  for (int retries = 10; retries; retries--)
+  {
+    try 
+    {
+      laser.open(argv[1]);
+      std::string device_id = laser.getID();
+      if (argc == 2)
+        printf("Device at %s has ID ", argv[1]);
+      printf("%s\n", device_id.c_str());
+      laser.close();
+      return 0;
+    }
+    catch (hokuyo::Exception &e)
+    {
+      ROS_WARN("getID failed: %s", e.what());
+      laser.close();
+    }
+    sleep(1);
+  }
+
+  ROS_ERROR("getID failed for 10 seconds. Giving up.");
+  return 1;
 }
