@@ -227,8 +227,6 @@ public:
     if (state_ != RUNNING) // RUNNING can exit asynchronously.
       return;
 
-    setStatusMessagef("Stopped.");
-
     state_ = OPENED;
 
     if (scan_thread_ && !scan_thread_->timed_join((boost::posix_time::milliseconds) 2000))
@@ -237,6 +235,8 @@ public:
       lost_scan_thread_count_++;
     }
     scan_thread_.reset();
+    
+    setStatusMessagef("Stopped.");
   }
 
   virtual std::string getID()
