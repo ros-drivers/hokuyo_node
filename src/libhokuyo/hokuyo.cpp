@@ -163,8 +163,14 @@ void hokuyo::Laser::reset ()
         }
         catch (hokuyo::Exception &e)
         {} // Ignore. If the laser was scanning TM2 would fail
-        sendCmd("RS", 1000);
+        try
+        {
+          sendCmd("RS", 1000);
+        }
+        catch (hokuyo::Exception &e)
+        {} // Ignore. If the command coincided with a scan we might get garbage.
         laserFlush();
+        sendCmd("RS", 1000); // This one should just work.
 }
 
 
@@ -548,7 +554,16 @@ hokuyo::Laser::laserOff() {
 
 int
 hokuyo::Laser::stopScanning() {
-  return laserOff();
+  try {
+    return laserOff();
+  }
+  catch (hokuyo::Exception &e)
+  {
+    // Ignore exception because we might have gotten part of a scan 
+    // instead of the expected response, which shows up as a bad checksum.
+    laserFlush();
+  } 
+  return laserOff(); // This one should work because the scan is stopped.
 }
 
 ///////////////////////////////////////////////////////////////////////////////

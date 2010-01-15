@@ -278,16 +278,21 @@ public:
         ROS_WARN("Skipping corrupted data");
         continue;
       } catch (hokuyo::Exception& e) {
-        doClose(); // This is probably unsafe.
         ROS_WARN("Exception thrown while trying to get scan.\n%s", e.what());
-        return;
+        break;
       }
 
       setStatusMessage("Scanning.");
       useScan_(scan_);
     }
 
-    laser_.stopScanning(); // This actually just calls laser Off internally.
+    try
+    {
+      laser_.stopScanning(); // This actually just calls laser Off internally.
+    } catch (hokuyo::Exception &e)
+    {
+        ROS_WARN("Exception thrown while trying to stop scan.\n%s", e.what());
+    }
     state_ = OPENED;
   }
 };
