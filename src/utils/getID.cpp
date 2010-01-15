@@ -48,6 +48,15 @@ main(int argc, char** argv)
     return 1;
   }
   
+  bool verbose = (argc == 2);
+  
+  if (!verbose)
+  {
+    // In quiet mode we want to turn off logging levels that go to stdout.
+    log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
+    my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Error]);
+  }
+
   hokuyo::Laser laser;
   
   for (int retries = 10; retries; retries--)
@@ -56,7 +65,7 @@ main(int argc, char** argv)
     {
       laser.open(argv[1]);
       std::string device_id = laser.getID();
-      if (argc == 2)
+      if (verbose)
         printf("Device at %s has ID ", argv[1]);
       printf("%s\n", device_id.c_str());
       laser.close();
@@ -64,12 +73,14 @@ main(int argc, char** argv)
     }
     catch (hokuyo::Exception &e)
     {
-      ROS_WARN("getID failed: %s", e.what());
+      if (verbose)
+        ROS_WARN("getID failed: %s", e.what());
       laser.close();
     }
     sleep(1);
   }
 
-  ROS_ERROR("getID failed for 10 seconds. Giving up.");
+  if (verbose)
+    ROS_ERROR("getID failed for 10 seconds. Giving up.");
   return 1;
 }
