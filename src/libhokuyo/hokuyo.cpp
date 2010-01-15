@@ -702,8 +702,18 @@ hokuyo::Laser::getVersionInformation()
   protocol_version_ = laserReadlineAfter(buf, 100, "PROT:");
   protocol_version_ = protocol_version_.substr(0,protocol_version_.length() - 3);
   
+  // This crazy naming scheme is for backward compatibility. Initially
+  // the serial number always started with an H. Then it got changed to a
+  // zero. For a while the driver was removing the leading zero in the
+  // serial number. This is fine as long as it is indeed a zero in front.
+  // The current behavior is backward compatible but will accomodate full
+  // length serial numbers.
   serial_number_ = laserReadlineAfter(buf, 100, "SERI:");
   serial_number_ = serial_number_.substr(0,serial_number_.length() - 3);
+  if (serial_number_[0] == '0')
+    serial_number_[0] = 'H';
+  else if (serial_number_[0] != 'H')
+    serial_number_ = 'H' + serial_number_;
 }
 
 
