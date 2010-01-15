@@ -249,8 +249,11 @@ public:
 
   void config_update(Config &new_config, int level = 0)
   {
-    if (state_ != CLOSED)
+    if (state_ == OPENED) 
+      // If it is closed, we don't know what to check for. If it is running those parameters haven't changed,
+      // and talking to the hokuyo would cause loads of trouble.
     {
+      ROS_DEBUG("Reconfigure called from state %i", state_);
       checkAngleRange(new_config);
       checkIntensitySupport(new_config);
     }
@@ -275,7 +278,7 @@ public:
         ROS_WARN("Skipping corrupted data");
         continue;
       } catch (hokuyo::Exception& e) {
-        doClose();
+        doClose(); // This is probably unsafe.
         ROS_WARN("Exception thrown while trying to get scan.\n%s", e.what());
         return;
       }
