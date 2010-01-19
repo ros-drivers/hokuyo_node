@@ -456,11 +456,16 @@ public:
     else if (driver_.device_status_ != std::string("Sensor works well."))
       status.summaryf(2, "Abnormal status: %s", driver_.device_status_.c_str());
     else if (driver_.state_ == driver_.RUNNING)
-      status.summary(0, "Sensor streaming.");
+    {
+      if (driver_.first_scan_)
+        status.summary(0, "Waiting for first scan");
+      else
+        status.summary(0, "Streaming");
+    }
     else if (driver_.state_ == driver_.OPENED)
-      status.summary(0, "Sensor open.");
+      status.summary(0, "Open");
     else 
-      status.summary(2, "Unknown sensor state.");
+      status.summary(2, "Unknown state");
 
     status.add("Device Status", driver_.device_status_);
     status.add("Port", driver_.config_.port);
