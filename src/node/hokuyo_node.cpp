@@ -224,6 +224,7 @@ public:
 
   void doStart()
   {
+    scan_pub_.clear_window(); // Reduce glitches in the frequency diagnostic.
     try
     {
       laser_.laserOn();
@@ -418,8 +419,6 @@ public:
     }
 
     diagnostic_.force_update();   
-  
-    scan_pub_.clear_window(); // Reduce glitches in the frequency diagnostic.
   }
 
   int publishScan(const hokuyo::LaserScan &scan)
