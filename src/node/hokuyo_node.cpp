@@ -190,7 +190,7 @@ public:
 
       if (config_.calibrate_time && !calibrated_)
       {
-        ROS_INFO("Starting calibration. This will take about a minute.");
+        ROS_INFO("Starting calibration. This will take up to a minute.");
         laser_.calcLatency(config_.intensity, config_.min_ang, config_.max_ang, config_.cluster, config_.skip);
         calibrated_ = true; // This is a slow step that we only want to do once.
         ROS_INFO("Calibration finished");
