@@ -224,7 +224,6 @@ public:
 
   void doStart()
   {
-    scan_pub_.clear_window(); // Reduce glitches in the frequency diagnostic.
     try
     {
       laser_.laserOn();
@@ -371,6 +370,8 @@ public:
     if (driver_.checkAngleRange(driver_.config_) || 
         driver_.checkIntensitySupport(driver_.config_)) // Might have been set before the device's range was known.
       reconfigure_server_.updateConfig(driver_.config_);
+    
+    scan_pub_.clear_window(); // Reduce glitches in the frequency diagnostic.
   }
 
   virtual void addOpenedTests()
@@ -419,6 +420,8 @@ public:
     }
 
     diagnostic_.force_update();   
+    
+    scan_pub_.clear_window(); // Reduce glitches in the frequency diagnostic.
   }
 
   int publishScan(const hokuyo::LaserScan &scan)
