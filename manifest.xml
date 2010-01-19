@@ -1,5 +1,5 @@
 <package>                                                                         
-  <description>A ROS node to provide access to SCIP 2.0-compliant Hokuyo laser range finders (including 04LX).</description>
+  <description brief="Hokuyo laser rangefinder drivers">A ROS node to provide access to SCIP 2.0-compliant Hokuyo laser range finders (including 04LX).</description>
   <author>Brian P. Gerkey, Jeremy Leibs, Blaise Gassend</author>
   <license>LGPL</license>
   <review status="API cleared" notes="Dec 2009" />
