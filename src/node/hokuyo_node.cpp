@@ -64,6 +64,8 @@ class HokuyoDriver : public driver_base::Driver
   std::string device_status_;
   std::string device_id_;
   
+  bool first_scan_;
+
   std::string vendor_name_;
   std::string product_name_;
   std::string protocol_version_;
@@ -105,8 +107,9 @@ public:
     if (conf.min_ang < laser_config_.min_angle)
     {
       changed = true;
-      ROS_WARN("Requested angle (%f rad) out of range, using minimum scan angle supported by device: %f rad.", 
-          conf.min_ang, laser_config_.min_angle);
+      if (laser_config_.min_angle - conf.min_ang > 1e-10)  /// @todo Avoids warning when restarting node pending ros#2353 getting fixed.
+        ROS_WARN("Requested angle (%f rad) out of range, using minimum scan angle supported by device: %f rad.", 
+            conf.min_ang, laser_config_.min_angle);
       conf.min_ang = laser_config_.min_angle;
     }                                    
     
@@ -115,8 +118,9 @@ public:
       changed = true;
       if (conf.max_ang < laser_config_.min_angle)
       {
-        ROS_WARN("Requested angle (%f rad) out of range, using minimum scan angle supported by device: %f rad.", 
-            conf.max_ang, laser_config_.min_angle);
+        if (laser_config_.min_angle - conf.max_ang > 1e-10)  /// @todo Avoids warning when restarting node pending ros#2353 getting fixed.
+          ROS_WARN("Requested angle (%f rad) out of range, using minimum scan angle supported by device: %f rad.", 
+              conf.max_ang, laser_config_.min_angle);
         conf.max_ang = laser_config_.min_angle;
       }
       ROS_WARN("Minimum angle must be greater than maximum angle. Adjusting min_ang.");
@@ -144,6 +148,7 @@ public:
       std::string old_device_id = device_id_;
       device_id_ = "unknown";
       device_status_ =  "unknown";
+      first_scan_ = true;
       
       laser_.open(config_.port.c_str());
       
@@ -154,22 +159,44 @@ public:
       protocol_version_ = laser_.getProtocolVersion();
 
       device_status_ = laser_.getStatus();
+      if (device_status_ != std::string("Sensor works well."))
+      {
+        doClose();
+        setStatusMessagef("Laser returned abnormal status message, aborting: %s You may be able to find further information at http://www.ros.org/wiki/hokuyo_node/Troubleshooting/", device_status_.c_str());
+        return;
+      }
       
-      // @todo causes spewing.
       if (old_device_id != device_id_)
+      {
         ROS_INFO("Connected to device with ID: %s", device_id_.c_str());
+
+        // Do this elaborate retry circuis if we were just plugged in.
+        for (int retries = 10;; retries--)
+          try {
+            laser_.laserOn();
+            break;
+          }
+        catch (hokuyo::Exception &e)
+        { 
+          if (!retries)
+            throw e; // After trying for 10 seconds, give up and throw the exception.
+          else if (retries == 10)
+            ROS_WARN("Could not turn on laser. This may happen just after the device is plugged in. Will retry for 10 seconds.");
+          ros::Duration(1).sleep();
+        }
+      }
+      else
+        laser_.laserOn(); // Otherwise, it should just work, so no tolerance.
 
       if (config_.calibrate_time && !calibrated_)
       {
-        laser_.laserOn();
-
-        ROS_INFO("Starting calibration");
+        ROS_INFO("Starting calibration. This will take about a minute.");
         laser_.calcLatency(config_.intensity, config_.min_ang, config_.max_ang, config_.cluster, config_.skip);
         calibrated_ = true; // This is a slow step that we only want to do once.
         ROS_INFO("Calibration finished");
       }
 
-      setStatusMessage("Device opened successfully.");
+      setStatusMessage("Device opened successfully.", true);
       laser_.getConfig(laser_config_);
       
       state_ = OPENED;
@@ -187,7 +214,7 @@ public:
     try
     {
       laser_.close();
-      setStatusMessage("Device closed successfully.");
+      setStatusMessage("Device closed successfully.", true);
     } catch (hokuyo::Exception& e) {
       setStatusMessagef("Exception thrown while trying to close:\n%s",e.what());
     }
@@ -209,7 +236,7 @@ public:
         return;
       }
     
-      setStatusMessagef("Waiting for first scan.");
+      setStatusMessagef("Waiting for first scan.", true);
       state_ = RUNNING;
       scan_thread_.reset(new boost::thread(boost::bind(&HokuyoDriver::scanThread, this)));
     } 
@@ -236,7 +263,7 @@ public:
     }
     scan_thread_.reset();
     
-    setStatusMessagef("Stopped.");
+    setStatusMessagef("Stopped.", true);
   }
 
   virtual std::string getID()
@@ -279,10 +306,17 @@ public:
         continue;
       } catch (hokuyo::Exception& e) {
         ROS_WARN("Exception thrown while trying to get scan.\n%s", e.what());
-        break;
+        doClose();
+        return;
       }
 
-      setStatusMessage("Scanning.");
+      if (first_scan_)
+      {
+        first_scan_ = false;
+        setStatusMessage("Streaming data.", true, true);
+        ROS_INFO("Streaming data.");
+      }
+
       useScan_(scan_);
     }
 
@@ -307,6 +341,7 @@ private:
   ros::NodeHandle node_handle_;
   diagnostic_updater::DiagnosedPublisher<sensor_msgs::LaserScan> scan_pub_;
   sensor_msgs::LaserScan scan_msg_;
+  diagnostic_updater::FunctionDiagnosticTask hokuyo_diagnostic_task_;
 
 public:
   HokuyoNode(ros::NodeHandle &nh) :
@@ -315,7 +350,8 @@ public:
     scan_pub_(node_handle_.advertise<sensor_msgs::LaserScan>("scan", 100),
         diagnostic_,
         diagnostic_updater::FrequencyStatusParam(&desired_freq_, &desired_freq_, 0.05),
-        diagnostic_updater::TimeStampStatusParam())
+        diagnostic_updater::TimeStampStatusParam()),
+        hokuyo_diagnostic_task_("Hokuyo Diagnostics", boost::bind(&HokuyoNode::connectionStatus, this, _1))
   {
     desired_freq_ = 0;
     driver_.useScan_ = boost::bind(&HokuyoNode::publishScan, this, _1);
@@ -356,7 +392,7 @@ public:
 
   virtual void addDiagnostics()
   {
-    diagnostic_.add("Connection Status", this, &HokuyoNode::connectionStatus );
+    driver_status_diagnostic_.addTask(&hokuyo_diagnostic_task_);
   }
   
   void reconfigureHook(int level)
@@ -416,7 +452,7 @@ public:
     if (driver_.state_ == driver_.CLOSED)
       status.summary(2, "Not connected. " + connect_fail_);
     else if (driver_.device_status_ != std::string("Sensor works well."))
-      status.summary(2, "Sensor not operational");
+      status.summaryf(2, "Abnormal status: %s", driver_.device_status_.c_str());
     else if (driver_.state_ == driver_.RUNNING)
       status.summary(0, "Sensor streaming.");
     else if (driver_.state_ == driver_.OPENED)
@@ -424,9 +460,9 @@ public:
     else 
       status.summary(2, "Unknown sensor state.");
 
+    status.add("Device Status", driver_.device_status_);
     status.add("Port", driver_.config_.port);
     status.add("Device ID", driver_.device_id_);
-    status.add("Device Status", driver_.device_status_);
     status.add("Scan Thread Lost Count", driver_.lost_scan_thread_count_);
     status.add("Corrupted Scan Count", driver_.corrupted_scan_count_);
     status.add("Vendor Name", driver_.vendor_name_);

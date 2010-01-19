@@ -39,19 +39,11 @@
 #endif
 
 
-//! Macro for throwing an exception with a message
-#define HOKUYO_EXCEPT(except, msg) \
-  { \
-    char buf[1000]; \
-    snprintf(buf, 1000, "hokuyo::Laser::%s: " msg, __FUNCTION__); \
-    throw except(buf); \
-  }
-
 //! Macro for throwing an exception with a message, passing args
-#define HOKUYO_EXCEPT_ARGS(except, msg, ...) \
+#define HOKUYO_EXCEPT(except, msg, ...) \
   { \
     char buf[1000]; \
-    snprintf(buf, 1000, "hokuyo::laser::%s: " msg, __FUNCTION__, __VA_ARGS__); \
+    snprintf(buf, 1000, msg " (in hokuyo::laser::%s) You may find further details at http://www.ros.org/wiki/hokuyo_node/Troubleshooting" , ##__VA_ARGS__, __FUNCTION__); \
     throw except(buf); \
   }
 
@@ -96,13 +88,33 @@ hokuyo::Laser::open(const char * port_name)
   
   laser_port_ = fopen(port_name, "r+");
   if (laser_port_ == NULL)
-    HOKUYO_EXCEPT_ARGS(hokuyo::Exception, "Failed to open port: %s -- error = %d: %s", port_name, errno, strerror(errno));
+  {
+    const char *extra_msg = "";
+    switch (errno)
+    {
+      case EACCES:
+        extra_msg = "You probably don't have premission to open the port for reading and writing.";
+        break;
+      case ENOENT:
+        extra_msg = "The requested port does not exist. Is the hokuyo connected? Was the port name misspelled?";
+        break;
+    }
 
+    HOKUYO_EXCEPT(hokuyo::Exception, "Failed to open port: %s. %s (errno = %d). %s", port_name, strerror(errno), errno, extra_msg);
+  }
   try
   {
     laser_fd_ = fileno (laser_port_);
     if (laser_fd_ == -1)
-      HOKUYO_EXCEPT_ARGS(hokuyo::Exception, "Failed to get file descriptor --  error = %d: %s", errno, strerror(errno));
+      HOKUYO_EXCEPT(hokuyo::Exception, "Failed to get file descriptor --  error = %d: %s", errno, strerror(errno));
+
+    // Make IO non blocking. This way there are no race conditions that
+    // cause blocking when a badly behaving process does a read at the same
+    // time as us. Will need to switch to blocking for writes or errors
+    // occur just after a replug event.
+    // No error checking. This really shouldn't fail, and even if it does,
+    // we aren't so badly off.
+    fcntl(laser_fd_, F_SETFL, fcntl(laser_fd_,F_GETFL,0) | O_NONBLOCK);
 
     struct flock fl;
     fl.l_type   = F_WRLCK;
@@ -112,7 +124,7 @@ hokuyo::Laser::open(const char * port_name)
     fl.l_pid   = getpid();
 
     if (fcntl(laser_fd_, F_SETLK, &fl) != 0)
-      HOKUYO_EXCEPT_ARGS(hokuyo::Exception, "Device %s is already locked.", port_name);
+      HOKUYO_EXCEPT(hokuyo::Exception, "Device %s is already locked. Try 'lsof | grep %s' to find other processes that currently have the port open.", port_name, port_name);
 
     // Settings for USB?
     struct termios newtio;
@@ -124,16 +136,27 @@ hokuyo::Laser::open(const char * port_name)
     
     // activate new settings
     tcflush (laser_fd_, TCIFLUSH);
-    tcsetattr (laser_fd_, TCSANOW, &newtio);
+    if (tcsetattr (laser_fd_, TCSANOW, &newtio) < 0)
+      HOKUYO_EXCEPT(hokuyo::Exception, "Unable to set serial port attributes. The port you specified (%s) may not be a serial port.", port_name); /// @todo tcsetattr returns true if at least one attribute was set. Hence, we might not have set everything on success.
     usleep (200000);
 
     // Some models (04LX) need to be told to go into SCIP2 mode...
     laserFlush();
-    setToSCIP2();
-
     // Just in case a previous failure mode has left our Hokuyo
     // spewing data, we send reset the laser to be safe.
-    reset();
+    try {
+      reset();
+    }
+    catch (hokuyo::Exception &e)
+    { 
+      // This might be a device that needs to be explicitely placed in
+      // SCIP2 mode. 
+      // Note: Not tested: a device that is currently scanning in SCIP1.1
+      // mode might not manage to switch to SCIP2.0.
+      
+      setToSCIP2(); // If this fails then it wasn't a device that could be switched to SCIP2.
+      reset(); // If this one fails, it really is an error.
+    }
 
     querySensorConfig();
 
@@ -197,7 +220,7 @@ hokuyo::Laser::close ()
   laser_fd_ = -1;
 
   if (retval != 0)
-    HOKUYO_EXCEPT_ARGS(hokuyo::Exception, "Failed to close port properly -- error = %d: %s\n", errno, strerror(errno));
+    HOKUYO_EXCEPT(hokuyo::Exception, "Failed to close port properly -- error = %d: %s\n", errno, strerror(errno));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -240,7 +263,7 @@ if (!portOpen())
   if (buf[0] - '0' >= 0 && buf[0] - '0' <= 9 && buf[1] - '0' >= 0 && buf[1] - '0' <= 9)
     return (buf[0] - '0')*10 + (buf[1] - '0');
   else
-    HOKUYO_EXCEPT_ARGS(hokuyo::Exception, "Hokuyo error code returned. Cmd: %s --  Error: %s", cmd, buf);
+    HOKUYO_EXCEPT(hokuyo::Exception, "Hokuyo error code returned. Cmd: %s --  Error: %s", cmd, buf);
 }
 
 
@@ -262,11 +285,18 @@ hokuyo::Laser::getConfig(LaserConfig& config)
 int
 hokuyo::Laser::laserWrite(const char* msg)
 {
+  // IO is currently non-blocking. This is what we want for the more common read case.
+  int origflags = fcntl(laser_fd_,F_GETFL,0);
+  fcntl(laser_fd_, F_SETFL, origflags & ~O_NONBLOCK); // @todo can we make this all work in non-blocking?
   int retval = fputs(msg, laser_port_);
+  int fputserrno = errno;
+  fcntl(laser_fd_, F_SETFL, origflags | O_NONBLOCK);
+  errno = fputserrno; // Don't want to see the fcntl errno below.
+  
   if (retval != EOF)
     return retval;
   else
-    HOKUYO_EXCEPT(hokuyo::Exception, "fputs failed");
+    HOKUYO_EXCEPT(hokuyo::Exception, "fputs failed -- Error = %d: %s", errno, strerror(errno));
 }
 
 
@@ -300,15 +330,17 @@ hokuyo::Laser::laserReadline(char *buf, int len, int timeout)
       if (buf[current-1] == '\n')
 	return current;
 
-    if(timeout >= 0)
-    {
-      if ((retval = poll(ufd, 1, timeout)) < 0)
-        HOKUYO_EXCEPT_ARGS(hokuyo::Exception, "poll failed   --  error = %d: %s", errno, strerror(errno));
+    if (timeout == 0)
+      timeout = -1; // For compatibility with former behavior, 0 means no timeout. For poll, negative means no timeout.
 
-      if (retval == 0)
-        HOKUYO_EXCEPT(hokuyo::TimeoutException, "timeout reached");
-    }
+    if ((retval = poll(ufd, 1, timeout)) < 0)
+      HOKUYO_EXCEPT(hokuyo::Exception, "poll failed   --  error = %d: %s", errno, strerror(errno));
 
+    if (retval == 0)
+      HOKUYO_EXCEPT(hokuyo::TimeoutException, "timeout reached");
+
+    // Non blocking call so we don't block if a misbehaved process is
+    // accessing the port.
     ret = fgets(&buf[current], len-current, laser_port_);
 
     if (ret != &buf[current])
@@ -409,7 +441,7 @@ hokuyo::Laser::readTime(int timeout)
   {
     if (++time_repeat_count_ > 2)
     {
-      HOKUYO_EXCEPT_ARGS(hokuyo::RepeatedTimeException, "The timestamp has not changed for %d reads", time_repeat_count_);
+      HOKUYO_EXCEPT(hokuyo::RepeatedTimeException, "The timestamp has not changed for %d reads", time_repeat_count_);
     }
     else if (time_repeat_count_ > 0)
       ROS_DEBUG("The timestamp has not changed for %d reads. Ignoring for now.", time_repeat_count_);
@@ -543,7 +575,7 @@ int
 hokuyo::Laser::laserOn() {
   int res = sendCmd("BM",1000);
   if (res == 1)
-    HOKUYO_EXCEPT(hokuyo::Exception, "Unable to control laser due to malfunction");
+    HOKUYO_EXCEPT(hokuyo::Exception, "Unable to control laser due to malfunction.");
   return res;
 }
 
@@ -667,7 +699,7 @@ hokuyo::Laser::serviceScan(hokuyo::LaserScan& scan, int timeout)
     buf[4] = 0;
 
     if (!checkSum(buf, 4))
-      HOKUYO_EXCEPT_ARGS(hokuyo::CorruptedDataException, "Checksum failed on status code: %s", buf);
+      HOKUYO_EXCEPT(hokuyo::CorruptedDataException, "Checksum failed on status code: %s", buf);
 
     sscanf(buf, "%2d", &status);
 
