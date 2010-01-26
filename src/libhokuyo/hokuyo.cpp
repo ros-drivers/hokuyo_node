@@ -26,7 +26,7 @@
 #include <math.h>
 #include <poll.h>
 
-#include "hokuyo.h"
+#include "hokuyo/hokuyo.h"
 
 #include <time.h>
 

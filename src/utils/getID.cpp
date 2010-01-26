@@ -32,7 +32,7 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
 
-#include "hokuyo.h"
+#include "hokuyo/hokuyo.h"
 #include <stdio.h>
 #include <ros/console.h>
 
