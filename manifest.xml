@@ -11,6 +11,6 @@
   <depend package="dynamic_reconfigure" />
   <url>http://www.ros.org/wiki/hokuyo_node</url>
   <export>
-        <cpp cflags="-I${prefix}/msg/cpp -I${prefix}/srv/cpp -I${prefix}/include" lflags="-L${prefix}/lib -Wl,-rpath,-L${prefix}/lib -llibhokuyom" />
+        <cpp cflags="-I${prefix}/msg/cpp -I${prefix}/srv/cpp -I${prefix}/include" lflags="-L${prefix}/lib -Wl,-rpath,-L${prefix}/lib -llibhokuyo" />
   </export>
 </package>
