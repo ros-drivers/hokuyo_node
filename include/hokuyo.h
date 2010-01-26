@@ -281,6 +281,19 @@ namespace hokuyo
      */
     long long calcLatency(bool intensity, double min_ang, double max_ang, int clustering = 0, int skip = 0, int num = 0, int timeout = -1);
 
+    //! This method clears the offset that was computed with calcLatency.
+    void clearLatency()
+    {
+      offset_ = 0;
+    }
+
+    //! Returns the latency that is in use.
+    //! \return Latency in nanoseconds.
+    long long getLatency()
+    {
+      return offset_;
+    }
+
     //! Return firmware version
     /*!
      * \return  Firmware version of hokuyo.

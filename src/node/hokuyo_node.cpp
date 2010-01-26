@@ -195,6 +195,11 @@ public:
         calibrated_ = true; // This is a slow step that we only want to do once.
         ROS_INFO("Calibration finished");
       }
+      else
+      {
+        calibrated_ = false;
+        laser_.clearLatency();
+      }
 
       setStatusMessage("Device opened successfully.", true);
       laser_.getConfig(laser_config_);
@@ -476,6 +481,8 @@ public:
     status.add("Product Name", driver_.product_name_);
     status.add("Firmware Version", driver_.firmware_version_);
     status.add("Protocol Version", driver_.protocol_version_);
+    status.add("Computed Latency", driver_.laser_.getLatency());
+    status.add("User Time Offset", driver_.config_.time_offset);
   }
 
   void statusTest(diagnostic_updater::DiagnosticStatusWrapper& status)
