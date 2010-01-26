@@ -437,7 +437,7 @@ public:
     scan_msg_.range_max = scan.config.max_range;
     scan_msg_.ranges = scan.ranges;
     scan_msg_.intensities = scan.intensities;
-    scan_msg_.header.stamp = ros::Time().fromNSec((uint64_t)scan.system_time_stamp);
+    scan_msg_.header.stamp = ros::Time().fromNSec((uint64_t)scan.system_time_stamp) + ros::Duration(driver_.config_.time_offset);
     scan_msg_.header.frame_id = driver_.config_.frame_id;
   
     desired_freq_ = (1. / scan.config.scan_time);
