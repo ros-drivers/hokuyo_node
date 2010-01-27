@@ -160,7 +160,7 @@ hokuyo::Laser::open(const char * port_name)
 
     querySensorConfig();
 
-    getVersionInformation(); // In preparation for calls to get various parts of the version info.
+    queryVersionInformation(); // In preparation for calls to get various parts of the version info.
   }
   catch (hokuyo::Exception& e)
   {
@@ -728,7 +728,7 @@ hokuyo::Laser::serviceScan(hokuyo::LaserScan& scan, int timeout)
 
 //////////////////////////////////////////////////////////////////////////////
 void
-hokuyo::Laser::getVersionInformation()
+hokuyo::Laser::queryVersionInformation()
 {
   if (!portOpen())
     HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");

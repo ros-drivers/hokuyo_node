@@ -326,10 +326,11 @@ namespace hokuyo
      */
     bool isIntensitySupported();
 
-  private:
     //! Call VV and store the returned version information
-    void getVersionInformation();
-
+    //! Use other methods to read the information.
+    void queryVersionInformation();
+  
+  private:
     //! Query the sensor configuration of the hokuyo
     void querySensorConfig();
 
