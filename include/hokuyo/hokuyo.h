@@ -330,18 +330,18 @@ namespace hokuyo
     //! Use other methods to read the information.
     void queryVersionInformation();
   
-  private:
-    //! Query the sensor configuration of the hokuyo
-    void querySensorConfig();
-
-    //! Wrapper around tcflush
-    int laserFlush();
-
     //! Wrapper around fputs
     int laserWrite(const char* msg);
 
     //! Read a full line from the hokuyo using fgets
     int laserReadline(char *buf, int len, int timeout = -1);
+
+    //! Wrapper around tcflush
+    int laserFlush();
+
+  private:
+    //! Query the sensor configuration of the hokuyo
+    void querySensorConfig();
 
     //! Search for a particular sequence and then read the rest of the line
     char* laserReadlineAfter(char *buf, int len, const char *str, int timeout = -1);
