@@ -848,78 +848,88 @@ hokuyo::Laser::calcLatency(bool intensity, double min_ang, double max_ang, int c
   if (!portOpen())
     HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
 
-  offset_ = 0;
-
-  uint64_t comp_time = 0;
-  uint64_t laser_time = 0;
-  long long diff_time = 0;
-  long long drift_time = 0;
-  long long tmp_offset1 = 0;
-  long long tmp_offset2 = 0;
-
-  int count = 0;
- 
-  sendCmd("TM0",timeout);
-  count = 100;
-
-  for (int i = 0; i < count;i++)
+  static const std::string buggy_version = "1.16.02(19/Jan./2010)";
+  if (firmware_version_ == buggy_version)
   {
-    usleep(1000);
-    sendCmd("TM1",timeout);
+    ROS_INFO("Hokuyo firmware version %s detected. Using hard-coded time offset of -23 ms.", 
+        buggy_version.c_str());
+    offset_ = -23000000;
+  }
+  else
+  {
+    offset_ = 0;
+
+    uint64_t comp_time = 0;
+    uint64_t laser_time = 0;
+    long long diff_time = 0;
+    long long drift_time = 0;
+    long long tmp_offset1 = 0;
+    long long tmp_offset2 = 0;
+
+    int count = 0;
+
+    sendCmd("TM0",timeout);
+    count = 100;
+
+    for (int i = 0; i < count;i++)
+    {
+      usleep(1000);
+      sendCmd("TM1",timeout);
+      comp_time = timeHelper();
+      try 
+      {
+        laser_time = readTime();
+
+        diff_time = comp_time - laser_time;
+
+        tmp_offset1 += diff_time / count;
+      } catch (hokuyo::RepeatedTimeException &e)
+      {
+        // We expect to get Repeated Time's when hammering on the time server
+        continue;
+      }
+    }
+
+    uint64_t start_time = timeHelper();
+    usleep(5000000);
+    sendCmd("TM1;a",timeout);
+    sendCmd("TM1;b",timeout);
     comp_time = timeHelper();
-    try 
-    {
-      laser_time = readTime();
-
-      diff_time = comp_time - laser_time;
-
-      tmp_offset1 += diff_time / count;
-    } catch (hokuyo::RepeatedTimeException &e)
-    {
-      // We expect to get Repeated Time's when hammering on the time server
-      continue;
-    }
-  }
-
-  uint64_t start_time = timeHelper();
-  usleep(5000000);
-  sendCmd("TM1;a",timeout);
-  sendCmd("TM1;b",timeout);
-  comp_time = timeHelper();
-  drift_time = comp_time - start_time;
-  laser_time = readTime() + tmp_offset1;
-  diff_time = comp_time - laser_time;
-  double drift_rate = double(diff_time) / double(drift_time);
-
-  sendCmd("TM2",timeout);
-  
-  if (requestScans(intensity, min_ang, max_ang, clustering, skip, num, timeout) != 0)
-    HOKUYO_EXCEPT(hokuyo::Exception, "Error requesting scans during latency calculation");
-
-  hokuyo::LaserScan scan;
-
-  count = 200;
-  for (int i = 0; i < count;i++)
-  {
-    try
-    {
-      serviceScan(scan, 1000);
-    } catch (hokuyo::CorruptedDataException &e) {
-      continue;
-    }
-
-    comp_time = scan.system_time_stamp;
     drift_time = comp_time - start_time;
-    laser_time = scan.self_time_stamp + tmp_offset1 + (long long)(drift_time*drift_rate);
-    diff_time = laser_time - comp_time;
+    laser_time = readTime() + tmp_offset1;
+    diff_time = comp_time - laser_time;
+    double drift_rate = double(diff_time) / double(drift_time);
 
-    tmp_offset2 += diff_time / count;
+    sendCmd("TM2",timeout);
+
+    if (requestScans(intensity, min_ang, max_ang, clustering, skip, num, timeout) != 0)
+      HOKUYO_EXCEPT(hokuyo::Exception, "Error requesting scans during latency calculation");
+
+    hokuyo::LaserScan scan;
+
+    count = 200;
+    for (int i = 0; i < count;i++)
+    {
+      try
+      {
+        serviceScan(scan, 1000);
+      } catch (hokuyo::CorruptedDataException &e) {
+        continue;
+      }
+
+      comp_time = scan.system_time_stamp;
+      drift_time = comp_time - start_time;
+      laser_time = scan.self_time_stamp + tmp_offset1 + (long long)(drift_time*drift_rate);
+      diff_time = laser_time - comp_time;
+
+      tmp_offset2 += diff_time / count;
+    }
+
+    offset_ = tmp_offset2;
+
+    stopScanning();
   }
 
-  offset_ = tmp_offset2;
-
-  stopScanning();
-  
   ROS_DEBUG("Leaving calcLatency.");
 
   return offset_;

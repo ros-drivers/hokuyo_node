@@ -63,6 +63,7 @@ class HokuyoDriver : public driver_base::Driver
 
   std::string device_status_;
   std::string device_id_;
+  std::string last_seen_device_id_;
   
   bool first_scan_;
 
@@ -169,6 +170,13 @@ public:
       if (old_device_id != device_id_)
       {
         ROS_INFO("Connected to device with ID: %s", device_id_.c_str());
+        
+        if (last_seen_device_id_ != device_id_)
+        {
+          // Recalibrate when the device changes.
+          last_seen_device_id_ = device_id_;
+          calibrated_ = false;
+        }
 
         // Do this elaborate retry circuis if we were just plugged in.
         for (int retries = 10;; retries--)
