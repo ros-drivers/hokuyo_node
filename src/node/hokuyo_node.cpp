@@ -97,7 +97,7 @@ public:
   {
     bool changed = false;
 
-    if (conf.max_ang > laser_config_.max_angle)
+    if (conf.max_ang - laser_config_.max_angle > 1e-10)   /// @todo Avoids warning when restarting node pending ros#2353 getting fixed.
     {
       changed = true;
       ROS_WARN("Requested angle (%f rad) out of range, using maximum scan angle supported by device: %f rad.", 
@@ -198,10 +198,10 @@ public:
 
       if (config_.calibrate_time && !calibrated_)
       {
-        ROS_INFO("Starting calibration. This will take up to a minute.");
-        laser_.calcLatency(config_.intensity, config_.min_ang, config_.max_ang, config_.cluster, config_.skip);
+        ROS_INFO("Starting calibration. This will take up a few seconds.");
+        double latency = laser_.calcLatency(false && config_.intensity, config_.min_ang, config_.max_ang, config_.cluster, config_.skip) * 1e-9;
         calibrated_ = true; // This is a slow step that we only want to do once.
-        ROS_INFO("Calibration finished");
+        ROS_INFO("Calibration finished. Latency is: %0.4f", latency);
       }
       else
       {

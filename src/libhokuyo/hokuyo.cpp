@@ -189,6 +189,8 @@ void hokuyo::Laser::reset ()
         try
         {
           sendCmd("RS", 1000);
+          last_time_ = 0; // RS resets the hokuyo clock.
+          wrapped_ = 0; // RS resets the hokuyo clock.
         }
         catch (hokuyo::Exception &e)
         {} // Ignore. If the command coincided with a scan we might get garbage.
@@ -294,7 +296,11 @@ hokuyo::Laser::laserWrite(const char* msg)
   errno = fputserrno; // Don't want to see the fcntl errno below.
   
   if (retval != EOF)
+  {
+    //long long outtime = timeHelper();
+    //fprintf(stderr, "Out: %lli.%09lli %s", outtime / 1000000000L, outtime % 1000000000L, msg);
     return retval;
+  }
   else
     HOKUYO_EXCEPT(hokuyo::Exception, "fputs failed -- Error = %d: %s", errno, strerror(errno));
 }
@@ -345,6 +351,9 @@ hokuyo::Laser::laserReadline(char *buf, int len, int timeout)
 
     if (ret != &buf[current])
       HOKUYO_EXCEPT(hokuyo::Exception, "fgets failed");
+    
+//    long long outtime = timeHelper();
+//    fprintf(stderr, "In: %lli.%09lli %s", outtime / 1000000000L, outtime % 1000000000L, buf);
 
     current += strlen(&buf[current]);
   }
@@ -605,6 +614,8 @@ hokuyo::Laser::requestScans(bool intensity, double min_ang, double max_ang, int 
   if (!portOpen())
     HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
 
+  //! @todo check that values are within range?
+
   int status;
 
   if (cluster == 0)
@@ -644,7 +655,7 @@ hokuyo::Laser::isIntensitySupported()
   catch (hokuyo::Exception &e)
   {} 
   
-  // Try an intensity command.
+  // Try a non intensity command.
   try
   {
     requestScans(0, 0, 0, 0, 0, 1);
@@ -707,7 +718,7 @@ hokuyo::Laser::serviceScan(hokuyo::LaserScan& scan, int timeout)
       return status;
     
   } while(status != 99);
-
+    
   scan.config.min_angle  =  (min_i - afrt_) * (2.0*M_PI)/(ares_);
   scan.config.max_angle  =  (max_i - afrt_) * (2.0*M_PI)/(ares_);
   scan.config.ang_increment =  cluster*(2.0*M_PI)/(ares_);
@@ -722,6 +733,8 @@ hokuyo::Laser::serviceScan(hokuyo::LaserScan& scan, int timeout)
 
   scan.system_time_stamp += inc;
   scan.self_time_stamp += inc;
+
+//  printf("Scan took %lli.\n", -scan.system_time_stamp + timeHelper() + offset_);
 
   return 0;
 }
@@ -837,8 +850,104 @@ hokuyo::Laser::getStatus()
 
   return statstr;
 }
+    
+template <class C>
+C median(std::vector<C> &v)
+{
+  std::vector<long long int>::iterator start  = v.begin();
+  std::vector<long long int>::iterator end    = v.end();
+  std::vector<long long int>::iterator median = start + (end - start) / 2;
+  //std::vector<long long int>::iterator quarter1 = median - (end - start) / 4;
+  //std::vector<long long int>::iterator quarter2 = median + (end - start) / 4;
+  std::nth_element(start, median, end);
+  //long long int medianval = *median;
+  //std::nth_element(start, quarter1, end);
+  //long long int quarter1val = *quarter1;
+  //std::nth_element(start, quarter2, end);
+  //long long int quarter2val = *quarter2;
+  return *median;
+}
 
+#if 1
+long long int hokuyo::Laser::getHokuyoClockOffset(int reps, int timeout)
+{
+  std::vector<long long int> offset(reps);
 
+  sendCmd("TM0",timeout);
+  for (int i = 0; i < reps; i++)
+  {
+    long long int prestamp = timeHelper();
+    sendCmd("TM1",timeout);
+    long long int hokuyostamp = readTime();
+    long long int poststamp = timeHelper();
+    offset[i] = hokuyostamp - (prestamp + poststamp) / 2;
+    //printf("%lli %lli %lli", hokuyostamp, prestamp, poststamp);
+  }
+  sendCmd("TM2",timeout);
+  
+  long long out = median(offset);
+
+  return out;
+}
+
+long long int hokuyo::Laser::getHokuyoScanStampToSystemStampOffset(bool intensity, double min_ang, double max_ang, int clustering, int skip, int reps, int timeout)
+{
+  if (reps < 1)
+    reps = 1;
+  else if (reps > 99) 
+    reps = 99;
+  
+  std::vector<long long int> offset(reps);
+  
+  if (requestScans(intensity, min_ang, max_ang, clustering, skip, reps, timeout) != 0)
+  {
+    HOKUYO_EXCEPT(hokuyo::Exception, "Error requesting scan while caliblating time.");
+    return 1;
+  }
+
+  hokuyo::LaserScan scan;
+  for (int i = 0; i < reps; i++)
+  {
+    serviceScan(scan, timeout);
+    //printf("%lli %lli\n", scan.self_time_stamp, scan.system_time_stamp);
+    offset[i] = scan.self_time_stamp - scan.system_time_stamp;
+  }
+
+  return median(offset);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+long long
+hokuyo::Laser::calcLatency(bool intensity, double min_ang, double max_ang, int clustering, int skip, int num, int timeout)
+{
+  offset_ = 0;
+  if (!portOpen())
+    HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
+
+  if (num <= 0)
+    num = 10;
+  
+  int ckreps = 1;
+  int scanreps = 1;
+  long long int start = getHokuyoClockOffset(ckreps, timeout);
+  long long int pre = 0;
+  std::vector<long long int> samples(num);
+  for (int i = 0; i < num; i++)
+  {                                                 
+    long long int scan = getHokuyoScanStampToSystemStampOffset(intensity, min_ang, max_ang, clustering, skip, scanreps, timeout) - start; 
+    long long int post = getHokuyoClockOffset(ckreps, timeout) - start;
+    samples[i] = scan - (post+pre)/2;
+    //printf("%lli %lli %lli %lli %lli\n", samples[i], post, pre, scan, pre - post);
+    //fflush(stdout);
+    pre = post;
+  }
+
+  offset_ = median(samples);
+  //printf("%lli\n", median(samples));
+  return offset_;
+}
+
+#else
 //////////////////////////////////////////////////////////////////////////////
 long long
 hokuyo::Laser::calcLatency(bool intensity, double min_ang, double max_ang, int clustering, int skip, int num, int timeout)
@@ -849,7 +958,7 @@ hokuyo::Laser::calcLatency(bool intensity, double min_ang, double max_ang, int c
     HOKUYO_EXCEPT(hokuyo::Exception, "Port not open.");
 
   static const std::string buggy_version = "1.16.02(19/Jan./2010)";
-  if (firmware_version_ == buggy_version)
+  if (firmware_version_ == buggy_version) 
   {
     ROS_INFO("Hokuyo firmware version %s detected. Using hard-coded time offset of -23 ms.", 
         buggy_version.c_str());
@@ -907,7 +1016,7 @@ hokuyo::Laser::calcLatency(bool intensity, double min_ang, double max_ang, int c
 
     hokuyo::LaserScan scan;
 
-    count = 200;
+    count = 200; 
     for (int i = 0; i < count;i++)
     {
       try
@@ -924,7 +1033,7 @@ hokuyo::Laser::calcLatency(bool intensity, double min_ang, double max_ang, int c
 
       tmp_offset2 += diff_time / count;
     }
-
+    
     offset_ = tmp_offset2;
 
     stopScanning();
@@ -933,4 +1042,5 @@ hokuyo::Laser::calcLatency(bool intensity, double min_ang, double max_ang, int c
   ROS_DEBUG("Leaving calcLatency.");
 
   return offset_;
-}
+} 
+#endif

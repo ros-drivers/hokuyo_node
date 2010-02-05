@@ -274,10 +274,10 @@ namespace hokuyo
      * \param max_ang    Maximum angle of the scan (radians)
      * \param clustering Number of adjascent ranges to be clustered into a single measurement
      * \param skip       Number of scans to skip between returning measurements
-     * \param num        Number of scans to return (0 for indefinite)
+     * \param num        Number of times to repeat the measurement 0 for auto.
      * \param timeout    Timeout in milliseconds.
      *
-     * \return Latency in nanoseconds
+     * \return Median latency in nanoseconds
      */
     long long calcLatency(bool intensity, double min_ang, double max_ang, int clustering = 0, int skip = 0, int num = 0, int timeout = -1);
 
@@ -339,7 +339,18 @@ namespace hokuyo
     //! Wrapper around tcflush
     int laserFlush();
 
+    //! Read in a time value
+    uint64_t readTime(int timeout = -1);
+
   private:
+    //! Use the TM command to determine the offset between the PC clock and
+    //the Hokuyo clock. Returns the median of reps measurements.
+    long long int getHokuyoClockOffset(int reps, int timeout = -1);
+
+    //! Get reps scans and returns the median difference between the system
+    // timestamp (PC) and the scan timestamp (Hokuyo).
+    long long int getHokuyoScanStampToSystemStampOffset(bool intensity, double min_ang, double max_ang, int clustering, int skip, int reps, int timeout = -1);
+     
     //! Query the sensor configuration of the hokuyo
     void querySensorConfig();
 
@@ -348,9 +359,6 @@ namespace hokuyo
 
     //! Compute the checksum of a given buffer
     bool checkSum(const char* buf, int buf_len);
-
-    //! Read in a time value
-    uint64_t readTime(int timeout = -1);
 
     //! Read in a scan
     void readData(LaserScan& scan, bool has_intensity, int timout = -1);
