@@ -28,6 +28,8 @@
 
 #include "hokuyo/hokuyo.h"
 
+#include <algorithm>
+
 #include <time.h>
 
 #include <fcntl.h>
