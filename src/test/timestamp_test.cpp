@@ -109,10 +109,9 @@ int main(int argc, char **argv)
   char *port = argv[1];
 
   hokuyo::Laser laser;
-  laser.open(port);
 
-  printf("# %s\n", laser.getFirmwareVersion().c_str());
-  fprintf(stderr, "%s\n", laser.getFirmwareVersion().c_str());
+  //printf("# %s\n", laser.getFirmwareVersion().c_str());
+  //fprintf(stderr, "%s\n", laser.getFirmwareVersion().c_str());
 
   /*
   int timeout = 1000;
@@ -157,9 +156,47 @@ int main(int argc, char **argv)
   //long long int initial_offset = getClockOffset(laser, 20);
   //long long int end_offset = getClockOffset(laser, 20);
   
-  while (true)
+  /*while (true)
   {
     getDataOffset(laser, 1);
     fflush(stdout);
+  } */
+  
+  hokuyo::LaserScan  scan_;
+
+  laser.open(port);
+  while (true)
+  {
+    try {
+      //std::string status = laser.getStatus();
+      //if (status == std::string("Sensor works well."))
+      {
+        laser.laserOn(); 
+        laser.requestScans(true, -2.3562, 2.3562, 0, 0);
+        //laser.serviceScan(scan_);
+        laser.serviceScan(scan_);
+      }
+      //else
+      //  fprintf(stderr, "%s\n", laser.getStatus().c_str());
+    }
+    catch (hokuyo::Exception e)
+    {
+      fprintf(stderr, "%s\n", e.what());
+    }
+    try {
+        laser.stopScanning();
+    }
+    catch (hokuyo::Exception e)
+    {
+      fprintf(stderr, "%s\n", e.what());
+    }
+    //usleep(100000);
+    try {
+      //laser.close();
+    }
+    catch (hokuyo::Exception e)
+    {
+      fprintf(stderr, "%s\n", e.what());
+    }
   }
 }

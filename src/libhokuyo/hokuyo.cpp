@@ -65,12 +65,21 @@ static uint64_t timeHelper()
 }
 
 
+#ifdef USE_LOG_FILE
+FILE *logfile;
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////
 hokuyo::Laser::Laser() :
                       dmin_(0), dmax_(0), ares_(0), amin_(0), amax_(0), afrt_(0), rate_(0),
                       wrapped_(0), last_time_(0), time_repeat_count_(0), offset_(0),
                       laser_port_(NULL), laser_fd_(-1)
-{ }
+{ 
+#ifdef USE_LOG_FILE
+  if (!logfile)
+    logfile = fopen("hokuyo.log", "w");
+#endif
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -299,8 +308,13 @@ hokuyo::Laser::laserWrite(const char* msg)
   
   if (retval != EOF)
   {
-    //long long outtime = timeHelper();
-    //fprintf(stderr, "Out: %lli.%09lli %s", outtime / 1000000000L, outtime % 1000000000L, msg);
+#ifdef USE_LOG_FILE
+    if (strlen(msg) > 1)
+    {
+      long long outtime = timeHelper();
+      fprintf(logfile, "Out: %lli.%09lli %s\n", outtime / 1000000000L, outtime % 1000000000L, msg);
+    }
+#endif
     return retval;
   }
   else
@@ -354,8 +368,10 @@ hokuyo::Laser::laserReadline(char *buf, int len, int timeout)
     if (ret != &buf[current])
       HOKUYO_EXCEPT(hokuyo::Exception, "fgets failed");
     
-//    long long outtime = timeHelper();
-//    fprintf(stderr, "In: %lli.%09lli %s", outtime / 1000000000L, outtime % 1000000000L, buf);
+#ifdef USE_LOG_FILE
+    long long outtime = timeHelper();
+    fprintf(logfile, "In: %lli.%09lli %s", outtime / 1000000000L, outtime % 1000000000L, buf);
+#endif
 
     current += strlen(&buf[current]);
   }
