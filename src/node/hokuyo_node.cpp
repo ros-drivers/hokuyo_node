@@ -97,6 +97,12 @@ public:
   {
     bool changed = false;
 
+    if (conf.intensity && laser_.getProductName() == "SOKUIKI Sensor TOP-URG UTM-30LX")
+    {
+      laser_config_.max_angle =  61 * M_PI / 180;
+      laser_config_.min_angle = -61 * M_PI / 180;
+    }
+
     if (conf.max_ang - laser_config_.max_angle > 1e-10)   /// @todo Avoids warning when restarting node pending ros#2353 getting fixed.
     {
       changed = true;
@@ -294,8 +300,8 @@ public:
       // and talking to the hokuyo would cause loads of trouble.
     {
       ROS_DEBUG("Reconfigure called from state %i", state_);
-      checkAngleRange(new_config);
       checkIntensitySupport(new_config);
+      checkAngleRange(new_config);
     }
     
     config_ = new_config;
@@ -380,8 +386,8 @@ public:
 
     diagnostic_.setHardwareID(driver_.getID());
 
-    if (driver_.checkAngleRange(driver_.config_) || 
-        driver_.checkIntensitySupport(driver_.config_)) // Might have been set before the device's range was known.
+    if (driver_.checkIntensitySupport(driver_.config_) || 
+        driver_.checkAngleRange(driver_.config_)) // Might have been set before the device's range was known.
       reconfigure_server_.updateConfig(driver_.config_);
     
     scan_pub_.clear_window(); // Reduce glitches in the frequency diagnostic.
