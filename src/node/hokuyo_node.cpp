@@ -97,10 +97,12 @@ public:
   {
     bool changed = false;
 
-    if (conf.intensity && laser_.getProductName() == "SOKUIKI Sensor TOP-URG UTM-30LX")
+    bool special_limit = false;
+    if (conf.intensity && !config_.allow_unsafe_settings && laser_.getProductName() == "SOKUIKI Sensor TOP-URG UTM-30LX")
     {
       laser_config_.max_angle =  61 * M_PI / 180;
       laser_config_.min_angle = -61 * M_PI / 180;
+      special_limit = true;
     }
 
     if (conf.max_ang - laser_config_.max_angle > 1e-10)   /// @todo Avoids warning when restarting node pending ros#2353 getting fixed.
@@ -133,6 +135,9 @@ public:
       ROS_WARN("Minimum angle must be greater than maximum angle. Adjusting min_ang.");
       conf.min_ang = conf.max_ang;
     }                                    
+      
+    if (special_limit && changed)
+      ROS_WARN("You may extend the scanner's angular range using the allow_unsafe_settings option, but this may result in incorrect data or laser crashes that will require a power cycle.");
 
     return changed;
   }
