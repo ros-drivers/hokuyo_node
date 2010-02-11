@@ -96,36 +96,35 @@ public:
   bool checkAngleRange(Config &conf)
   {
     bool changed = false;
-    bool changed_message = false;
 
-    bool special_limit = false;
-    if (conf.intensity && !config_.allow_unsafe_settings && laser_.getProductName() == "SOKUIKI Sensor TOP-URG UTM-30LX")
-    {
-      laser_config_.max_angle =  61 * M_PI / 180;
-      laser_config_.min_angle = -61 * M_PI / 180;
-      special_limit = true;
-    }
-
-    if (conf.max_ang - laser_config_.max_angle > 1e-10)   /// @todo Avoids warning when restarting node pending ros#2353 getting fixed.
-    {
-      changed = true;
-      changed_message = true;
-      ROS_WARN("Requested angle (%f rad) out of range, using maximum scan angle supported by device: %f rad.", 
-          conf.max_ang, laser_config_.max_angle);
-      conf.max_ang = laser_config_.max_angle;
-    }
-    
     if (conf.min_ang < laser_config_.min_angle)
     {
       changed = true;
       if (laser_config_.min_angle - conf.min_ang > 1e-10)  /// @todo Avoids warning when restarting node pending ros#2353 getting fixed.
       {
-        changed_message = true;
         ROS_WARN("Requested angle (%f rad) out of range, using minimum scan angle supported by device: %f rad.", 
             conf.min_ang, laser_config_.min_angle);
       }
       conf.min_ang = laser_config_.min_angle;
     }                                    
+    
+    double max_safe_angular_range = ((conf.cluster == 0 ? 1 : conf.cluster) * 95) * M_PI / 180;
+    if (conf.intensity && (conf.max_ang - conf.min_ang) > max_safe_angular_range + 1e-8 &&
+        !config_.allow_unsafe_settings && laser_.getProductName() ==
+            "SOKUIKI Sensor TOP-URG UTM-30LX")
+    {
+      changed = true;
+      conf.max_ang = conf.min_ang + max_safe_angular_range;
+      ROS_WARN("More than 95 degree/cluster scan range requested on UTM-30LX in intensity mode. The max_ang was adjusted to limit the range. You may extend the scanner's angular range using the allow_unsafe_settings option, but this may result in incorrect data or laser crashes that will require a power cycle of the laser.");
+    }
+
+    if (conf.max_ang - laser_config_.max_angle > 1e-10)   /// @todo Avoids warning when restarting node pending ros#2353 getting fixed.
+    {
+      changed = true;
+      ROS_WARN("Requested angle (%f rad) out of range, using maximum scan angle supported by device: %f rad.", 
+          conf.max_ang, laser_config_.max_angle);
+      conf.max_ang = laser_config_.max_angle;
+    }
     
     if (conf.min_ang > conf.max_ang)
     {
@@ -141,9 +140,6 @@ public:
       conf.min_ang = conf.max_ang;
     }                                    
       
-    if (special_limit && changed_message)
-      ROS_WARN("You may extend the scanner's angular range using the allow_unsafe_settings option, but this may result in incorrect data or laser crashes that will require a power cycle.");
-
     return changed;
   }
 
@@ -305,15 +301,16 @@ public:
 
   void config_update(Config &new_config, int level = 0)
   {
+    ROS_DEBUG("Reconfigure called from state %i", state_);
+    
     if (state_ == OPENED) 
       // If it is closed, we don't know what to check for. If it is running those parameters haven't changed,
       // and talking to the hokuyo would cause loads of trouble.
     {
-      ROS_DEBUG("Reconfigure called from state %i", state_);
       checkIntensitySupport(new_config);
       checkAngleRange(new_config);
     }
-    
+
     config_ = new_config;
   }
 
