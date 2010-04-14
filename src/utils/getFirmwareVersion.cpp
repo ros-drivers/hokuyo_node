@@ -66,7 +66,7 @@ main(int argc, char** argv)
       laser.open(argv[1]);
       std::string firmware_version = laser.getFirmwareVersion();
       if (verbose)
-        printf("Device at %s has ID ", argv[1]);
+        printf("Device at %s has FW rev ", argv[1]);
       printf("%s\n", firmware_version.c_str());
       laser.close();
       return 0;
