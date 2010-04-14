@@ -478,7 +478,7 @@ public:
   void connectionStatus(diagnostic_updater::DiagnosticStatusWrapper& status)
   {
     if (driver_.state_ == driver_.CLOSED)
-      status.summary(2, "Not connected. " + connect_fail_);
+      status.summary(2, "Not connected. " + driver_.device_status_ + " " + connect_fail_);
     else if (driver_.device_status_ != std::string("Sensor works well."))
       status.summaryf(2, "Abnormal status: %s", driver_.device_status_.c_str());
     else if (driver_.state_ == driver_.RUNNING)
