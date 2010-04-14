@@ -1,2 +1,5 @@
 rosbuild_add_executable(getID getID.cpp)
 target_link_libraries(getID libhokuyo)
+
+rosbuild_add_executable(getFirmwareVersion getFirmwareVersion.cpp)
+target_link_libraries(getFirmwareVersion libhokuyo)
