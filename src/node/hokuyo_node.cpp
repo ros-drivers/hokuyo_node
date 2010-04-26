@@ -108,7 +108,12 @@ public:
       conf.min_ang = laser_config_.min_angle;
     }                                    
     
-    double max_safe_angular_range = ((conf.cluster == 0 ? 1 : conf.cluster) * 95) * M_PI / 180;
+    double max_safe_angular_range_per_cluster_deg = 95;
+    if (firmware_version_ == "1.16.01(16/Nov./2009)")
+      max_safe_angular_range_per_cluster_deg = 190;
+    
+    double max_safe_angular_range = ((conf.cluster == 0 ? 1 : conf.cluster) * max_safe_angular_range_per_cluster_deg) * M_PI / 180;
+
     if (conf.intensity && (conf.max_ang - conf.min_ang) > max_safe_angular_range + 1e-8 &&
         !config_.allow_unsafe_settings && laser_.getProductName() ==
             "SOKUIKI Sensor TOP-URG UTM-30LX")
