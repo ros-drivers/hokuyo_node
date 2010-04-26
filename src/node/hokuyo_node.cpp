@@ -112,7 +112,8 @@ public:
     if (firmware_version_ == "1.16.01(16/Nov./2009)")
       max_safe_angular_range_per_cluster_deg = 190;
     
-    double max_safe_angular_range = ((conf.cluster == 0 ? 1 : conf.cluster) * max_safe_angular_range_per_cluster_deg) * M_PI / 180;
+    int real_cluster = conf.cluster == 0 ? 1 : conf.cluster;
+    double max_safe_angular_range = (real_cluster * max_safe_angular_range_per_cluster_deg) * M_PI / 180;
 
     if (conf.intensity && (conf.max_ang - conf.min_ang) > max_safe_angular_range + 1e-8 &&
         !config_.allow_unsafe_settings && laser_.getProductName() ==
@@ -120,7 +121,7 @@ public:
     {
       changed = true;
       conf.max_ang = conf.min_ang + max_safe_angular_range;
-      ROS_WARN("More than 95 degree/cluster scan range requested on UTM-30LX in intensity mode. The max_ang was adjusted to limit the range. You may extend the scanner's angular range using the allow_unsafe_settings option, but this may result in incorrect data or laser crashes that will require a power cycle of the laser.");
+      ROS_WARN("More than %f degree/cluster scan range requested on UTM-30LX firmware version %s in intensity mode with cluster=%i. The max_ang was adjusted to limit the range. You may extend the scanner's angular range using the allow_unsafe_settings option, but this may result in incorrect data or laser crashes that will require a power cycle of the laser.", max_safe_angular_range_per_cluster_deg, firmware_version_.c_str(), real_cluster);
     }
 
     if (conf.max_ang - laser_config_.max_angle > 1e-10)   /// @todo Avoids warning when restarting node pending ros#2353 getting fixed.
