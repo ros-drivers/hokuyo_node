@@ -25,6 +25,7 @@
 #include <termios.h>
 #include <math.h>
 #include <poll.h>
+#include <signal.h>
 
 #include "hokuyo/hokuyo.h"
 
@@ -97,6 +98,12 @@ hokuyo::Laser::open(const char * port_name)
   if (portOpen())
     close();
   
+  // Small race condition in how we do this. Unlikely that it will ever be
+  // a problem.
+  sighandler_t oldsig = signal(SIGHUP, SIG_IGN);
+  if (oldsig != SIG_DFL)
+    signal(SIGHUP, oldsig);
+
   laser_port_ = fopen(port_name, "r+");
   if (laser_port_ == NULL)
   {
