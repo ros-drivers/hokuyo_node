@@ -98,13 +98,16 @@ hokuyo::Laser::open(const char * port_name)
   if (portOpen())
     close();
   
-  // Small race condition in how we do this. Unlikely that it will ever be
-  // a problem.
-  sighandler_t oldsig = signal(SIGHUP, SIG_IGN);
-  if (oldsig != SIG_DFL)
-    signal(SIGHUP, oldsig);
+  // Make IO non blocking. This way there are no race conditions that
+  // cause blocking when a badly behaving process does a read at the same
+  // time as us. Will need to switch to blocking for writes or errors
+  // occur just after a replug event.
+  laser_fd_ = ::open(port_name, O_RDWR | O_NONBLOCK | O_NOCTTY);
+  if (laser_fd_ < 0)
+    laser_port_ = NULL;
+  else
+    laser_port_ = fdopen(laser_fd_, "r+");
 
-  laser_port_ = fopen(port_name, "r+");
   if (laser_port_ == NULL)
   {
     const char *extra_msg = "";
@@ -122,18 +125,6 @@ hokuyo::Laser::open(const char * port_name)
   }
   try
   {
-    laser_fd_ = fileno (laser_port_);
-    if (laser_fd_ == -1)
-      HOKUYO_EXCEPT(hokuyo::Exception, "Failed to get file descriptor --  error = %d: %s", errno, strerror(errno));
-
-    // Make IO non blocking. This way there are no race conditions that
-    // cause blocking when a badly behaving process does a read at the same
-    // time as us. Will need to switch to blocking for writes or errors
-    // occur just after a replug event.
-    // No error checking. This really shouldn't fail, and even if it does,
-    // we aren't so badly off.
-    fcntl(laser_fd_, F_SETFL, fcntl(laser_fd_,F_GETFL,0) | O_NONBLOCK);
-
     struct flock fl;
     fl.l_type   = F_WRLCK;
     fl.l_whence = SEEK_SET;
