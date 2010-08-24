@@ -153,7 +153,7 @@ namespace hokuyo
     void reset();
   
     //! Check whether the port is open
-    bool portOpen() {  return laser_port_ != NULL; }
+    bool portOpen() {  return laser_fd_ != -1; }
 
     //! Sends an SCIP2.0 command to the hokuyo device
 	// sets up model 04LX to work in SCIP 2.0 mode
@@ -379,7 +379,6 @@ namespace hokuyo
 
     long long offset_;
 
-    FILE* laser_port_;
     int laser_fd_;
 
     std::string vendor_name_;
@@ -387,6 +386,10 @@ namespace hokuyo
     std::string serial_number_;
     std::string protocol_version_;
     std::string firmware_version_;
+
+    char read_buf[256];
+    int read_buf_start;
+    int read_buf_end;
   };
 
 }

@@ -74,7 +74,7 @@ FILE *logfile;
 hokuyo::Laser::Laser() :
                       dmin_(0), dmax_(0), ares_(0), amin_(0), amax_(0), afrt_(0), rate_(0),
                       wrapped_(0), last_time_(0), time_repeat_count_(0), offset_(0),
-                      laser_port_(NULL), laser_fd_(-1)
+                      laser_fd_(-1)
 { 
 #ifdef USE_LOG_FILE
   if (!logfile)
@@ -103,12 +103,9 @@ hokuyo::Laser::open(const char * port_name)
   // time as us. Will need to switch to blocking for writes or errors
   // occur just after a replug event.
   laser_fd_ = ::open(port_name, O_RDWR | O_NONBLOCK | O_NOCTTY);
-  if (laser_fd_ < 0)
-    laser_port_ = NULL;
-  else
-    laser_port_ = fdopen(laser_fd_, "r+");
+  read_buf_start = read_buf_end = 0;
 
-  if (laser_port_ == NULL)
+  if (laser_fd_ == -1)
   {
     const char *extra_msg = "";
     switch (errno)
@@ -174,9 +171,8 @@ hokuyo::Laser::open(const char * port_name)
   catch (hokuyo::Exception& e)
   {
     // These exceptions mean something failed on open and we should close
-    if (laser_port_ != NULL)
-      fclose(laser_port_);
-    laser_port_ = NULL;
+    if (laser_fd_ != -1)
+      ::close(laser_fd_);
     laser_fd_ = -1;
     throw e;
   }
@@ -224,10 +220,9 @@ hokuyo::Laser::close ()
       //Exceptions here can be safely ignored since we are closing the port anyways
     }
 
-    retval = fclose(laser_port_); // Automatically releases the lock.
+    retval = ::close(laser_fd_); // Automatically releases the lock.
   }
 
-  laser_port_ = NULL;
   laser_fd_ = -1;
 
   if (retval != 0)
@@ -299,12 +294,13 @@ hokuyo::Laser::laserWrite(const char* msg)
   // IO is currently non-blocking. This is what we want for the more common read case.
   int origflags = fcntl(laser_fd_,F_GETFL,0);
   fcntl(laser_fd_, F_SETFL, origflags & ~O_NONBLOCK); // @todo can we make this all work in non-blocking?
-  int retval = fputs(msg, laser_port_);
+  ssize_t len = strlen(msg);
+  ssize_t retval = write(laser_fd_, msg, len);
   int fputserrno = errno;
   fcntl(laser_fd_, F_SETFL, origflags | O_NONBLOCK);
   errno = fputserrno; // Don't want to see the fcntl errno below.
   
-  if (retval != EOF)
+  if (retval != -1)
   {
 #ifdef USE_LOG_FILE
     if (strlen(msg) > 1)
@@ -327,6 +323,8 @@ hokuyo::Laser::laserFlush()
   int retval = tcflush(laser_fd_, TCIOFLUSH);
   if (retval != 0)
     HOKUYO_EXCEPT(hokuyo::Exception, "tcflush failed");
+  read_buf_start = 0;
+  read_buf_end = 0;
   
   return retval;
 } 
@@ -336,7 +334,6 @@ hokuyo::Laser::laserFlush()
 int 
 hokuyo::Laser::laserReadline(char *buf, int len, int timeout)
 {
-  char* ret;
   int current=0;
 
   struct pollfd ufd[1];
@@ -344,12 +341,8 @@ hokuyo::Laser::laserReadline(char *buf, int len, int timeout)
   ufd[0].fd = laser_fd_;
   ufd[0].events = POLLIN;
 
-  while (current < len - 1)
+  while (true)
   {
-    if (current > 0)
-      if (buf[current-1] == '\n')
-	return current;
-
     if (timeout == 0)
       timeout = -1; // For compatibility with former behavior, 0 means no timeout. For poll, negative means no timeout.
 
@@ -359,21 +352,36 @@ hokuyo::Laser::laserReadline(char *buf, int len, int timeout)
     if (retval == 0)
       HOKUYO_EXCEPT(hokuyo::TimeoutException, "timeout reached");
 
-    // Non blocking call so we don't block if a misbehaved process is
-    // accessing the port.
-    ret = fgets(&buf[current], len-current, laser_port_);
+    if (read_buf_start == read_buf_end) // Need to read?
+    {
+      int bytes = read(laser_fd_, read_buf, sizeof(read_buf));
+      if (bytes == -1 && errno != EAGAIN && errno != EWOULDBLOCK)
+        HOKUYO_EXCEPT(hokuyo::Exception, "read failed");
+      read_buf_start = 0;
+      read_buf_end = bytes;
+    }
+       
+    while (read_buf_end != read_buf_start)
+    {
+      if (current == len - 1)
+      {
+        buf[current] = 0;
+        HOKUYO_EXCEPT(hokuyo::Exception, "buffer filled without end of line being found");
+      }
 
-    if (ret != &buf[current])
-      HOKUYO_EXCEPT(hokuyo::Exception, "fgets failed");
-    
+      buf[current] = read_buf[read_buf_start++];
+      if (buf[current++] == '\n')
+      {
+        buf[current] = 0;
+        return current;
+      }
+    }
+
 #ifdef USE_LOG_FILE
     long long outtime = timeHelper();
     fprintf(logfile, "In: %lli.%09lli %s", outtime / 1000000000L, outtime % 1000000000L, buf);
 #endif
-
-    current += strlen(&buf[current]);
   }
-  HOKUYO_EXCEPT(hokuyo::Exception, "buffer filled without end of line being found");
 }
 
 
