@@ -134,12 +134,13 @@ hokuyo::Laser::open(const char * port_name)
 
     // Settings for USB?
     struct termios newtio;
-    memset (&newtio, 0, sizeof (newtio));
+    tcgetattr(laser_fd_, &newtio);
+    memset (&newtio.c_cc, 0, sizeof (newtio.c_cc));
     newtio.c_cflag = CS8 | CLOCAL | CREAD;
     newtio.c_iflag = IGNPAR;
     newtio.c_oflag = 0;
-    newtio.c_lflag = ICANON;
-    
+    newtio.c_lflag = 0;
+
     // activate new settings
     tcflush (laser_fd_, TCIFLUSH);
     if (tcsetattr (laser_fd_, TCSANOW, &newtio) < 0)
