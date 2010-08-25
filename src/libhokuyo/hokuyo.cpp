@@ -341,20 +341,23 @@ hokuyo::Laser::laserReadline(char *buf, int len, int timeout)
   int retval;
   ufd[0].fd = laser_fd_;
   ufd[0].events = POLLIN;
+    
+  if (timeout == 0)
+    timeout = -1; // For compatibility with former behavior, 0 means no timeout. For poll, negative means no timeout.
 
   while (true)
   {
-    if (timeout == 0)
-      timeout = -1; // For compatibility with former behavior, 0 means no timeout. For poll, negative means no timeout.
-
-    if ((retval = poll(ufd, 1, timeout)) < 0)
-      HOKUYO_EXCEPT(hokuyo::Exception, "poll failed   --  error = %d: %s", errno, strerror(errno));
-
-    if (retval == 0)
-      HOKUYO_EXCEPT(hokuyo::TimeoutException, "timeout reached");
-
     if (read_buf_start == read_buf_end) // Need to read?
     {
+      if ((retval = poll(ufd, 1, timeout)) < 0)
+        HOKUYO_EXCEPT(hokuyo::Exception, "poll failed   --  error = %d: %s", errno, strerror(errno));
+
+      if (retval == 0)
+        HOKUYO_EXCEPT(hokuyo::TimeoutException, "timeout reached");
+      
+      if (ufd[0].revents & POLLERR)
+        HOKUYO_EXCEPT(hokuyo::Exception, "error on socket, possibly unplugged");
+      
       int bytes = read(laser_fd_, read_buf, sizeof(read_buf));
       if (bytes == -1 && errno != EAGAIN && errno != EWOULDBLOCK)
         HOKUYO_EXCEPT(hokuyo::Exception, "read failed");
