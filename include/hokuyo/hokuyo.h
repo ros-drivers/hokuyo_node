@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 #include <stdint.h>
+#include <limits>
 
 //! A namespace containing the hokuyo device driver
 namespace hokuyo

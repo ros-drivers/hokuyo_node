@@ -516,7 +516,7 @@ hokuyo::Laser::readData(hokuyo::LaserScan& scan, bool has_intensity, int timeout
 
   int bytes;
 
-  float range;
+  int range;
   float intensity;
 
   for (;;)
@@ -532,22 +532,120 @@ hokuyo::Laser::readData(hokuyo::LaserScan& scan, bool has_intensity, int timeout
     bytes += ind - 2;
     
     // Read as many ranges as we can get
-    for (int j = 0; j < bytes - (bytes % data_size); j+=data_size)
-    {
-      if (scan.ranges.size() < MAX_READINGS)
+    if(dmax_ > 20){ // Check error codes for the UTM 30LX (it is the only one with the long max range and has different error codes)
+      for (int j = 0; j < bytes - (bytes % data_size); j+=data_size)
       {
-        range = (((buf[j]-0x30) << 12) | ((buf[j+1]-0x30) << 6) | (buf[j+2]-0x30)) / 1000.0;
-	scan.ranges.push_back(range);
+	if (scan.ranges.size() < MAX_READINGS)
+	{
+	  range = (((buf[j]-0x30) << 12) | ((buf[j+1]-0x30) << 6) | (buf[j+2]-0x30));
+	  
+	  switch (range) // See the SCIP2.0 reference on page 12, Table 4
+	  {
+	    case 1: // No Object in Range
+	      scan.ranges.push_back(std::numeric_limits<float>::infinity());
+	      break;
+	    case 2: // Object is too near (Internal Error)
+	      scan.ranges.push_back(-std::numeric_limits<float>::infinity());
+	      break;
+	    case 3: // Measurement Error (May be due to interference)
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 4: // Object out of range (at the near end)
+	      ///< @todo, Should this be an Infinity Instead?
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 5: // Other errors
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    default:
+	      scan.ranges.push_back(((float)range)/1000.0);
+	  }
 
-        if (has_intensity)
-        {
-	  intensity = (((buf[j+3]-0x30) << 12) | ((buf[j+4]-0x30) << 6) | (buf[j+5]-0x30));
-          scan.intensities.push_back(intensity);
-        }
+	  if (has_intensity)
+	  {
+	    intensity = (((buf[j+3]-0x30) << 12) | ((buf[j+4]-0x30) << 6) | (buf[j+5]-0x30));
+	    scan.intensities.push_back(intensity);
+	  }
+	}
+	else
+	{
+	  HOKUYO_EXCEPT(hokuyo::CorruptedDataException, "Got more readings than expected");
+	}
       }
-      else
+    } else { // Check error codes for all other lasers (URG-04LX UBG-04LX-F01 UHG-08LX)
+      for (int j = 0; j < bytes - (bytes % data_size); j+=data_size)
       {
-        HOKUYO_EXCEPT(hokuyo::CorruptedDataException, "Got more readings than expected");
+	if (scan.ranges.size() < MAX_READINGS)
+	{
+	  range = (((buf[j]-0x30) << 12) | ((buf[j+1]-0x30) << 6) | (buf[j+2]-0x30));
+	  
+	  switch (range) // See the SCIP2.0 reference on page 12, Table 3
+	  {
+	    case 0: // Detected object is possibly at 22m
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 1: // Reflected light has low intensity
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 2: // Reflected light has low intensity
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 6: // Others
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 7: // Distance data on the preceding and succeeding steps have errors
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 8: // Intensity difference of two waves
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 9: // The same step had error in the last two scan
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 10: // Others
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 11: // Others
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 12: // Others
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 13: // Others
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 14: // Others
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 15: // Others
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 16: // Others
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 17: // Others
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 18: // Error reading due to strong reflective object
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    case 19: // Non-Measurable step
+	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      break;
+	    default:
+	      scan.ranges.push_back(((float)range)/1000.0);
+	  }
+
+	  if (has_intensity)
+	  {
+	    intensity = (((buf[j+3]-0x30) << 12) | ((buf[j+4]-0x30) << 6) | (buf[j+5]-0x30));
+	    scan.intensities.push_back(intensity);
+	  }
+	}
+	else
+	{
+	  HOKUYO_EXCEPT(hokuyo::CorruptedDataException, "Got more readings than expected");
+	}
       }
     }
     // Shuffle remaining bytes to front of buffer to get them on the next loop

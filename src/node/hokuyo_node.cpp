@@ -374,6 +374,9 @@ private:
   diagnostic_updater::DiagnosedPublisher<sensor_msgs::LaserScan> scan_pub_;
   sensor_msgs::LaserScan scan_msg_;
   diagnostic_updater::FunctionDiagnosticTask hokuyo_diagnostic_task_;
+  
+  // Tick-tock transition variable, controls if the driver outputs NaNs and Infs
+  bool use_rep_117_;
 
 public:
   HokuyoNode(ros::NodeHandle &nh) :
@@ -388,6 +391,19 @@ public:
     desired_freq_ = 0;
     driver_.useScan_ = boost::bind(&HokuyoNode::publishScan, this, _1);
     driver_.setPostOpenHook(boost::bind(&HokuyoNode::postOpenHook, this));
+    
+    // Check whether or not to support REP 117
+    std::string key;
+    if (node_handle_.searchParam("use_rep_117", key))
+    {
+      node_handle_.getParam(key, use_rep_117_);
+    } else {
+      use_rep_117_ = false;
+    }
+    
+    if(!use_rep_117_){ // Warn the user that they need to update their code.
+      ROS_WARN("The use_rep_117 parameter has not been set or is set to false.  Please see: http://ros.org/wiki/rep_117/migration");
+    }
   }
 
   void postOpenHook()
@@ -473,6 +489,14 @@ public:
     scan_msg_.header.frame_id = driver_.config_.frame_id;
   
     desired_freq_ = (1. / scan.config.scan_time);
+    
+    if(!use_rep_117_){ // Filter out all NaNs, -Infs, and +Infs; replace them with 0 since that is more consistent with the previous behavior
+      for(uint i = 0; i < scan_msg_.ranges.size(); i++){
+	if(std::isnan(scan_msg_.ranges[i]) || std::isinf(scan_msg_.ranges[i])){
+	  scan_msg_.ranges[i] = 0;
+	}
+      }
+    }
 
     scan_pub_.publish(scan_msg_);
 
