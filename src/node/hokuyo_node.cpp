@@ -391,18 +391,19 @@ public:
     desired_freq_ = 0;
     driver_.useScan_ = boost::bind(&HokuyoNode::publishScan, this, _1);
     driver_.setPostOpenHook(boost::bind(&HokuyoNode::postOpenHook, this));
-    
+
     // Check whether or not to support REP 117
     std::string key;
-    if (node_handle_.searchParam("use_rep_117", key))
+    if (nh.searchParam("use_rep_117", key))
     {
-      node_handle_.getParam(key, use_rep_117_);
+      nh.getParam(key, use_rep_117_);
     } else {
-      use_rep_117_ = false;
+      ROS_WARN("The use_rep_117 parameter has not been specified and has been automatically set to true.  This parameter will be removed in Hydromedusa.  Please see: http://ros.org/wiki/rep_117/migration");
+      use_rep_117_ = true;
     }
     
     if(!use_rep_117_){ // Warn the user that they need to update their code.
-      ROS_WARN("The use_rep_117 parameter has not been set or is set to false.  Please see: http://ros.org/wiki/rep_117/migration");
+      ROS_WARN("The use_rep_117 parameter is set to false.  This parameter will be removed in Hydromedusa.  Please see: http://ros.org/wiki/rep_117/migration");
     }
   }
 
