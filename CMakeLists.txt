@@ -1,26 +1,7 @@
-# http://ros.org/doc/groovy/api/catkin/html/user_guide/supposed.html
 cmake_minimum_required(VERSION 2.8.3)
 project(hokuyo_node)
 
-# Load catkin and all dependencies required for this package
-find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs driver_base self_test diagnostic_updater dynamic_reconfigure)
-
-# Dynamic reconfigure support
-generate_dynamic_reconfigure_options(cfg/Hokuyo.cfg)
-
-include_directories(include cfg/cpp ${catkin_INCLUDE_DIRS})
-
-# Hokuyo library
-add_library(libhokuyo src/hokuyo.cpp)
-
-# Hokuyo_node requires boost::thread
-find_package(Boost REQUIRED COMPONENTS thread)
-include_directories(${Boost_INCLUDE_DIRS})
-
-# hokuyo_node
-add_executable(hokuyo_node src/hokuyo_node.cpp)
-add_dependencies(hokuyo_node ${PROJECT_NAME}_gencfg)
-target_link_libraries(hokuyo_node libhokuyo ${Boost_LIBRARIES} ${catkin_LIBRARIES})
+find_package(Boost REQUIRED COMPONENTS system thread)
 
 # Utilities that use log4cxx - getID and getFirmwareVersion
 find_library(LOG4CXX_LIBRARY log4cxx)
@@ -28,19 +9,50 @@ if(NOT LOG4CXX_LIBRARY)
   message(FATAL_ERROR "Couldn't find log4cxx library")
 endif()
 
+# Load catkin and all dependencies required for this package
+find_package(catkin REQUIRED
+  COMPONENTS
+    diagnostic_updater
+    driver_base
+    dynamic_reconfigure
+    rosconsole
+    roscpp
+    self_test
+    sensor_msgs
+)
+
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS})
+
+# Dynamic reconfigure support
+generate_dynamic_reconfigure_options(cfg/Hokuyo.cfg)
+
+# Export with catkin_package
+catkin_package(
+    INCLUDE_DIRS include
+    CATKIN_DEPENDS rosconsole
+    LIBRARIES libhokuyo
+)
+
+# Hokuyo library
+add_library(libhokuyo src/hokuyo.cpp)
+target_link_libraries(libhokuyo ${rosconsole_LIBRARIES})
+
+# hokuyo_node
+add_executable(hokuyo_node src/hokuyo_node.cpp)
+add_dependencies(hokuyo_node ${PROJECT_NAME}_gencfg)
+target_link_libraries(hokuyo_node
+  libhokuyo
+  ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
 add_executable(getID src/getID.cpp)
 target_link_libraries(getID libhokuyo ${LOG4CXX_LIBRARY} ${catkin_LIBRARIES})
 
 add_executable(getFirmwareVersion src/getFirmwareVersion.cpp)
-target_link_libraries(getFirmwareVersion libhokuyo ${LOG4CXX_LIBRARY} ${catkin_LIBRARIES})
-
-# TODO: fill in what other packages will need to use this package
-## LIBRARIES: libraries you create in this project that dependent projects also need
-## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(
-    DEPENDS
-    CATKIN-DEPENDS roscpp sensor_msgs driver_base self_test diagnostic_updater dynamic_reconfigure
-    INCLUDE_DIRS include
-    LIBRARIES libhokuyo ${LOG4CXX_LIBRARY} ${Boost_LIBRARIES}
+target_link_libraries(getFirmwareVersion
+  libhokuyo
+  ${LOG4CXX_LIBRARY}
+  ${catkin_LIBRARIES}
 )
