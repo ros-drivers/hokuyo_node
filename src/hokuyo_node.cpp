@@ -48,7 +48,7 @@
 
 #include "hokuyo_node/HokuyoConfig.h"
 
-#include "hokuyo/hokuyo.h"
+#include "hokuyo_node/hokuyo.h"
 
 using namespace std;
 

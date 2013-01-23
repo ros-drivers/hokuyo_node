@@ -1,4 +1,4 @@
-#include <hokuyo/hokuyo.h>
+#include <hokuyo_node/hokuyo.h>
 #include <time.h>
 #include <sys/time.h> 
 #include <algorithm>

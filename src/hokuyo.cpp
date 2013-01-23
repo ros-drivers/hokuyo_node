@@ -27,7 +27,7 @@
 #include <poll.h>
 #include <signal.h>
 
-#include "hokuyo/hokuyo.h"
+#include "hokuyo_node/hokuyo.h"
 
 #include <algorithm>
 
