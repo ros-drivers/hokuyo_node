@@ -49,7 +49,7 @@ namespace hokuyo
   class name  : public parent { \
   public: \
     name(const char* msg) : parent(msg) {} \
-  }
+  }\
   
   //! A standard Hokuyo exception
   DEF_EXCEPTION(Exception, std::runtime_error);

@@ -492,7 +492,7 @@ public:
     desired_freq_ = (1. / scan.config.scan_time);
     
     if(!use_rep_117_){ // Filter out all NaNs, -Infs, and +Infs; replace them with 0 since that is more consistent with the previous behavior
-      for(uint i = 0; i < scan_msg_.ranges.size(); i++){
+      for(size_t i = 0; i < scan_msg_.ranges.size(); i++){
 	if(std::isnan(scan_msg_.ranges[i]) || std::isinf(scan_msg_.ranges[i])){
 	  scan_msg_.ranges[i] = 0;
 	}
