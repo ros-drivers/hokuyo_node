@@ -56,3 +56,14 @@ target_link_libraries(getFirmwareVersion
   ${LOG4CXX_LIBRARY}
   ${catkin_LIBRARIES}
 )
+
+# Install targets
+install(TARGETS libhokuyo DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
+
+install(DIRECTORY include/${PROJECT_NAME}/
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+install(TARGETS hokuyo_node getID getFirmwareVersion
+        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
