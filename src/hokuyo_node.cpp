@@ -374,9 +374,6 @@ private:
   diagnostic_updater::DiagnosedPublisher<sensor_msgs::LaserScan> scan_pub_;
   sensor_msgs::LaserScan scan_msg_;
   diagnostic_updater::FunctionDiagnosticTask hokuyo_diagnostic_task_;
-  
-  // Tick-tock transition variable, controls if the driver outputs NaNs and Infs
-  bool use_rep_117_;
 
 public:
   HokuyoNode(ros::NodeHandle &nh) :
@@ -392,18 +389,11 @@ public:
     driver_.useScan_ = boost::bind(&HokuyoNode::publishScan, this, _1);
     driver_.setPostOpenHook(boost::bind(&HokuyoNode::postOpenHook, this));
 
-    // Check whether or not to support REP 117
+    // Check if use_rep_117 is set.
     std::string key;
     if (nh.searchParam("use_rep_117", key))
     {
-      nh.getParam(key, use_rep_117_);
-    } else {
-      ROS_WARN("The use_rep_117 parameter has not been specified and has been automatically set to true.  This parameter will be removed in Hydromedusa.  Please see: http://ros.org/wiki/rep_117/migration");
-      use_rep_117_ = true;
-    }
-    
-    if(!use_rep_117_){ // Warn the user that they need to update their code.
-      ROS_WARN("The use_rep_117 parameter is set to false.  This parameter will be removed in Hydromedusa.  Please see: http://ros.org/wiki/rep_117/migration");
+      ROS_ERROR("The use_rep_117 parameter has not been specified and is now ignored.  This parameter was removed in Hydromedusa.  Please see: http://ros.org/wiki/rep_117/migration");
     }
   }
 
@@ -490,14 +480,6 @@ public:
     scan_msg_.header.frame_id = driver_.config_.frame_id;
   
     desired_freq_ = (1. / scan.config.scan_time);
-    
-    if(!use_rep_117_){ // Filter out all NaNs, -Infs, and +Infs; replace them with 0 since that is more consistent with the previous behavior
-      for(size_t i = 0; i < scan_msg_.ranges.size(); i++){
-	if(std::isnan(scan_msg_.ranges[i]) || std::isinf(scan_msg_.ranges[i])){
-	  scan_msg_.ranges[i] = 0;
-	}
-      }
-    }
 
     scan_pub_.publish(scan_msg_);
 
