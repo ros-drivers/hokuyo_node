@@ -532,7 +532,7 @@ hokuyo::Laser::readData(hokuyo::LaserScan& scan, bool has_intensity, int timeout
     bytes += ind - 2;
     
     // Read as many ranges as we can get
-    if(dmax_ > 20){ // Check error codes for the UTM 30LX (it is the only one with the long max range and has different error codes)
+    if(dmax_ > 20000){ // Check error codes for the UTM 30LX (it is the only one with the long max range and has different error codes)
       for (int j = 0; j < bytes - (bytes % data_size); j+=data_size)
       {
 	if (scan.ranges.size() < MAX_READINGS)
@@ -582,7 +582,7 @@ hokuyo::Laser::readData(hokuyo::LaserScan& scan, bool has_intensity, int timeout
 	  switch (range) // See the SCIP2.0 reference on page 12, Table 3
 	  {
 	    case 0: // Detected object is possibly at 22m
-	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	      scan.ranges.push_back(std::numeric_limits<float>::infinity());
 	      break;
 	    case 1: // Reflected light has low intensity
 	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
@@ -590,8 +590,8 @@ hokuyo::Laser::readData(hokuyo::LaserScan& scan, bool has_intensity, int timeout
 	    case 2: // Reflected light has low intensity
 	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
 	      break;
-	    case 6: // Others
-	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
+	    case 6: // Detected object is possibly at 5.7m
+	      scan.ranges.push_back(std::numeric_limits<float>::infinity());
 	      break;
 	    case 7: // Distance data on the preceding and succeeding steps have errors
 	      scan.ranges.push_back(std::numeric_limits<float>::quiet_NaN());
