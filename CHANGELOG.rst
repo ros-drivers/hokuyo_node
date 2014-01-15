@@ -2,8 +2,8 @@
 Changelog for package hokuyo_node
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.7.8 (2014-01-15)
+------------------
 * Merge pull request `#8 <https://github.com/ros-drivers/hokuyo_node/issues/8>`_ from trainman419/hydro-devel
   Use rosconsole to set logger levels. Fixes `#7 <https://github.com/ros-drivers/hokuyo_node/issues/7>`_
 * Use rosconsole to set logger levels. Fixes `#7 <https://github.com/ros-drivers/hokuyo_node/issues/7>`_
