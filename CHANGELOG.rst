@@ -2,6 +2,14 @@
 Changelog for package hokuyo_node
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Merge pull request `#8 <https://github.com/ros-drivers/hokuyo_node/issues/8>`_ from trainman419/hydro-devel
+  Use rosconsole to set logger levels. Fixes `#7 <https://github.com/ros-drivers/hokuyo_node/issues/7>`_
+* Use rosconsole to set logger levels. Fixes `#7 <https://github.com/ros-drivers/hokuyo_node/issues/7>`_
+* Added changelog
+* Contributors: Chad Rockey, chadrockey, trainman419
+
 1.7.7 (2013-07-17)
 ------------------
 * fixing value interpretation for smaller lasers (04LX)
