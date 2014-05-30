@@ -542,7 +542,7 @@ hokuyo::Laser::readData(hokuyo::LaserScan& scan, bool has_intensity, int timeout
 	  switch (range) // See the SCIP2.0 reference on page 12, Table 4
 	  {
 	    case 1: // No Object in Range
-	      scan.ranges.push_back(std::numeric_limits<float>::infinity());
+	      scan.ranges.push_back(scan.config.max_range);
 	      break;
 	    case 2: // Object is too near (Internal Error)
 	      scan.ranges.push_back(-std::numeric_limits<float>::infinity());
