@@ -45,9 +45,9 @@
 //! Macro for throwing an exception with a message, passing args
 #define HOKUYO_EXCEPT(except, msg, ...) \
   { \
-    char buf[1000]; \
-    snprintf(buf, 1000, msg " (in hokuyo::laser::%s) You may find further details at http://www.ros.org/wiki/hokuyo_node/Troubleshooting" , ##__VA_ARGS__, __FUNCTION__); \
-    throw except(buf); \
+    char __buf[1000]; \
+    snprintf(__buf, 1000, msg " (in hokuyo::laser::%s) You may find further details at http://www.ros.org/wiki/hokuyo_node/Troubleshooting" , ##__VA_ARGS__, __FUNCTION__); \
+    throw except(__buf); \
   }
 
 
